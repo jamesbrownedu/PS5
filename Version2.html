@@ -55,10 +55,17 @@
             background-image: var(--current-bg);
             background-size: cover;
             background-position: center;
-            filter: brightness(0.32) saturate(1.1);
+            filter: brightness(0.35) saturate(1.1) contrast(1.05);
             transform: scale(1.05);
-            transition: transform 1.6s cubic-bezier(0.25, 1, 0.5, 1);
+            transition: transform 1.6s cubic-bezier(0.2, 0, 0.2, 1);
             will-change: transform;
+            animation: kenBurns 30s infinite alternate ease-in-out;
+        }
+
+        @keyframes kenBurns {
+            0% { transform: scale(1.05) translate(0, 0); }
+            50% { transform: scale(1.12) translate(-1%, -1%); }
+            100% { transform: scale(1.05) translate(0, 0); }
         }
 
         #bg-overlay::after {
@@ -80,24 +87,42 @@
 
         .media-btn {
             position: relative;
-            padding: 6px 4px;
-            font-size: 15px;
-            font-weight: 400;
-            letter-spacing: 0.02em;
-            color: var(--text-tertiary);
-            transition: color 0.25s ease;
+            padding: 8px 0;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
 
+        .media-btn:hover {
+            color: rgba(255,255,255,0.8);
+        }
+
         .media-btn.active {
-            color: var(--text-primary);
-            font-weight: 500;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255,255,255,0.5);
         }
 
         .media-btn.active::after {
             content: '';
             position: absolute;
-            bottom: -4px;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 0 12px #fff, 0 0 4px #fff;
+            animation: lineGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes lineGlow {
+            0%, 100% { opacity: 0.8; transform: scaleX(1); }
+            50% { opacity: 1; transform: scaleX(1.05); }
+        }
             left: 50%;
             transform: translateX(-50%);
             width: 16px;
@@ -112,10 +137,10 @@
 
         .game-tile {
             position: relative;
-            width: 140px;
-            height: 140px;
+            width: 154px;
+            height: 154px;
             border-radius: var(--radius-md);
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255,255,255,0.05);
             background: var(--bg-tile);
             flex-shrink: 0;
             overflow: hidden;
@@ -123,23 +148,23 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1),
-                        border-color 0.28s ease,
-                        box-shadow 0.28s ease;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             will-change: transform;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
         }
 
         .game-tile:hover {
             background: var(--bg-tile-hover);
-            filter: brightness(1.15);
-            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.08);
+            filter: brightness(1.1);
         }
 
         .game-tile.focused {
-            transform: scale(1.14);
-            border-color: var(--border-focus);
-            box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.12);
-            z-index: 10;
+            transform: scale(1.2) translateY(-12px);
+            border: 2px solid #fff;
+            box-shadow: 0 0 35px rgba(255,255,255,0.4), 
+                        0 20px 50px rgba(0,0,0,0.8);
+            z-index: 100;
+            background: rgba(255,255,255,0.12);
         }
 
         .game-tile img {
@@ -592,6 +617,33 @@
 </head>
 <body>
 
+
+    <!-- Context Menu -->
+    <div id="message-context-menu" class="hidden fixed z-[10000] bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl py-1 px-1 shadow-2xl w-44">
+        <div id="menu-group-own" class="hidden">
+            <button onclick="triggerEdit()" class="w-full text-left px-3 py-2 hover:bg-white/10 rounded-lg flex items-center gap-2 text-sm transition"><i class="fas fa-edit text-blue-400"></i> Edit Message</button>
+            <button onclick="triggerDelete()" class="w-full text-left px-3 py-2 hover:bg-white/10 rounded-lg flex items-center gap-2 text-sm transition text-red-400"><i class="fas fa-trash-alt"></i> Delete Message</button>
+        </div>
+        <div id="menu-group-others">
+            <div class="flex items-center justify-between px-2 py-1 mb-1 border-b border-white/5">
+                <button onclick="addReaction('🔥')" class="hover:scale-125 transition">🔥</button>
+                <button onclick="addReaction('😂')" class="hover:scale-125 transition">😂</button>
+                <button onclick="addReaction('❤️')" class="hover:scale-125 transition">❤️</button>
+                <button onclick="addReaction('👍')" class="hover:scale-125 transition">👍</button>
+                <button onclick="addReaction('💀')" class="hover:scale-125 transition">💀</button>
+            </div>
+        </div>
+        <button onclick="openForwardModal()" class="w-full text-left px-3 py-2 hover:bg-white/10 rounded-lg flex items-center gap-2 text-sm transition"><i class="fas fa-share text-green-400"></i> Forward</button>
+    </div>
+
+    <!-- Forward Modal -->
+    <div id="forward-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content max-w-sm" onclick="event.stopPropagation()">
+            <h2 class="text-xl font-bold mb-4">Forward Message</h2>
+            <div id="forward-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+            <button onclick="closeModals()" class="w-full mt-4 bg-white/10 hover:bg-white/20 py-2 rounded font-bold transition">Cancel</button>
+        </div>
+    </div>
 
     <!-- Auth Modal -->
     <div id="auth-modal" class="modal-overlay">
@@ -1178,16 +1230,19 @@
             
             resContainer.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400 text-sm"></i>';
             try {
-                // To keep it simple without full text search, we do exact match or partial start
+                // Get current friends to filter them out
+                const friendsSnap = await db.collection('users').doc(currentUser.uid).collection('friends').get();
+                const friendIds = friendsSnap.docs.map(d => d.id);
+
                 const q = query.toLowerCase();
-                // Try exact match first (no composite index needed)
                 const snap = await db.collection('users').where('usernameLower', '==', q).limit(5).get();
-                if(snap.empty) { resContainer.innerHTML = '<div class="text-xs text-gray-400">No users found.</div>'; return; }
                 
                 let html = '';
+                let foundAny = false;
                 snap.forEach(doc => {
+                    if(doc.id === currentUser.uid || friendIds.includes(doc.id)) return;
+                    foundAny = true;
                     const u = doc.data();
-                    if(doc.id === currentUser.uid) return;
                     html += `
                     <div class="flex items-center justify-between bg-white/5 p-2 rounded border border-white/10">
                         <div class="flex items-center gap-3 pr-2">
@@ -1197,7 +1252,7 @@
                         <button class="text-xs bg-white/10 hover:bg-white/20 transition px-3 py-1 rounded font-bold text-white" onclick="sendFriendRequest('${doc.id}', '${u.username}')">Add</button>
                     </div>`;
                 });
-                resContainer.innerHTML = html || '<div class="text-xs text-gray-400 mt-2">No other users found.</div>';
+                resContainer.innerHTML = foundAny ? html : '<div class="text-xs text-gray-400 mt-2">No new users found.</div>';
             } catch(e) { resContainer.innerHTML = '<div class="text-xs text-red-400">Error searching.</div>'; }
         }
 
@@ -1313,19 +1368,41 @@
             loadFriendsList();
         }
 
-        function openChat(conversationId, name) {
+        async function openChat(conversationId, name) {
             const content = document.getElementById('social-content');
+            content.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+            
+            const convoSnap = await db.collection('conversations').doc(conversationId).get();
+            const convoData = convoSnap.data();
+            let otherUser = null;
+            
+            if (convoData && convoData.isDirectMessage) {
+                const otherUid = convoData.memberIds.find(id => id !== currentUser.uid);
+                const uDoc = await db.collection('users').doc(otherUid).get();
+                if (uDoc.exists) otherUser = { id: otherUid, ...uDoc.data() };
+            }
+
             content.innerHTML = `
-                <div class="flex items-center gap-2 mb-4">
-                    <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-2"><i class="fas fa-chevron-left"></i></button>
-                    <div class="font-bold truncate">${name}</div>
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-1"><i class="fas fa-chevron-left"></i></button>
+                        ${otherUser ? `
+                            <div class="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-1 rounded transition" onclick="viewOtherProfile('${otherUser.id}')">
+                                <img src="${otherUser.avatarUrl}" class="w-8 h-8 rounded-full border border-white/10">
+                                <div class="font-bold truncate text-sm">${otherUser.username}</div>
+                            </div>
+                        ` : `<div class="font-bold truncate text-sm px-2">${name}</div>`}
+                    </div>
+                    ${otherUser ? `<button onclick="viewOtherProfile('${otherUser.id}')" class="text-gray-400 hover:text-white text-xs"><i class="fas fa-info-circle"></i></button>` : ''}
                 </div>
-                <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-3 pr-2" style="max-height: 60vh;"></div>
-                <div id="typing-status" class="text-[10px] text-gray-500 italic mb-2 h-4"></div>
+                <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-3 pr-2" style="max-height: 55vh;"></div>
+                <div id="typing-status" class="text-[10px] text-gray-500 italic mb-2 h-4 px-2"></div>
                 <div id="blocked-status" class="hidden bg-red-900/40 border border-red-500/50 text-red-200 p-2 rounded mb-2 text-xs text-center font-bold">
-                    <i class="fas fa-ban mr-2"></i>You cannot send messages to this chat.
+                    <i class="fas fa-ban mr-2"></i>You cannot send messages to this user.
                 </div>
-                <div id="chat-input-container" class="flex gap-2">
+                <div id="chat-input-container" class="flex gap-2 p-1 relative">
+                    <input type="file" id="chat-image-input" accept="image/*" class="hidden" onchange="handleChatImageUpload('${conversationId}')">
+                    <button class="bg-white/5 hover:bg-white/10 transition px-3 rounded text-gray-400" onclick="document.getElementById('chat-image-input').click()"><i class="fas fa-camera"></i></button>
                     <input type="text" id="chat-input" class="modal-input flex-1 py-2 px-3 text-sm" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChatMessage('${conversationId}')" oninput="handleTyping('${conversationId}')">
                     <button class="bg-white/10 hover:bg-white/20 transition px-4 rounded text-gray-300 font-bold" onclick="sendChatMessage('${conversationId}')"><i class="fas fa-paper-plane"></i></button>
                 </div>
@@ -1364,30 +1441,253 @@
                     const msgs = document.getElementById('chat-messages');
                     if(!msgs) return;
                     let html = '';
+                    msgs.innerHTML = '';
                     snap.forEach(doc => {
                         const data = doc.data();
+                        if (data.deleted) return;
                         const isMine = data.senderId === currentUser.uid;
-                        html += `
-                            <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
-                                <div class="max-w-[80%] ${isMine ? 'bg-blue-600 text-white rounded-l-lg rounded-tr-lg' : 'bg-white/10 text-gray-200 rounded-r-lg rounded-tl-lg'} p-2 text-xs">
-                                    ${!isMine && name !== 'Group Chat' ? `<div class="font-bold text-[9px] text-blue-400 mb-1">${data.senderName || 'User'}</div>` : ''}
-                                    ${data.text}
+                        
+                        let messageBody = '';
+                        if (data.type === 'image') {
+                            messageBody = `<img src="${data.imageUrl}" class="rounded-lg max-w-full cursor-pointer hover:brightness-110 transition" onclick="window.open('${data.imageUrl}')">`;
+                        } else {
+                            messageBody = parseMessageText(data.text);
+                        }
+
+                        if(data.isForwarded) {
+                            messageBody = `
+                                <div class="text-[9px] text-gray-400 italic mb-1 flex items-center gap-1"><i class="fas fa-share"></i> Forwarded from ${data.forwardedFrom || 'User'}</div>
+                                ${messageBody}
+                            `;
+                        }
+
+                        // Reactions
+                        let reactionsHtml = '';
+                        if (data.reactions) {
+                            reactionsHtml = `<div class="flex gap-1 mt-1 flex-wrap">`;
+                            for (const [emoji, count] of Object.entries(data.reactions)) {
+                                if(count > 0) reactionsHtml += `<span class="bg-white/10 px-1.5 py-0.5 rounded-full text-[10px]">${emoji} ${count}</span>`;
+                            }
+                            reactionsHtml += `</div>`;
+                        }
+
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+                        
+                        // Format time
+                        let timeStr = '';
+                        if (data.createdAt) {
+                            const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
+                            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        }
+
+                        msgDiv.innerHTML = `
+                            <div class="max-w-[90%] relative group ${isMine ? 'bg-blue-600 text-white rounded-l-lg rounded-tr-lg' : 'bg-white/10 text-gray-200 rounded-r-lg rounded-tl-lg'} p-2 text-xs" 
+                                 oncontextmenu="handleMsgCtx(event, '${doc.id}', '${data.senderId}', '${conversationId}')">
+                                ${!isMine && name !== 'Group Chat' ? `<div class="font-bold text-[9px] text-blue-400 mb-1">${data.senderName || 'User'}</div>` : ''}
+                                ${messageBody}
+                                ${reactionsHtml}
+                                <div class="flex items-center justify-between mt-1 gap-2">
+                                    <div class="text-[8px] opacity-40">${timeStr} ${data.isEdited ? '<span class="italic">(edited)</span>' : ''}</div>
                                 </div>
                             </div>
                         `;
+                        msgs.appendChild(msgDiv);
                     });
-                    msgs.innerHTML = html;
                     msgs.scrollTop = msgs.scrollHeight;
                 });
+        }
+
+        let contextTarget = null;
+        function handleMsgCtx(e, msgId, senderId, convoId) {
+            e.preventDefault();
+            contextTarget = { msgId, senderId, convoId };
+            const menu = document.getElementById('message-context-menu');
+            const isMine = senderId === currentUser.uid;
+            
+            document.getElementById('menu-group-own').style.display = isMine ? 'block' : 'none';
+            
+            menu.classList.remove('hidden');
+            menu.style.left = `${e.pageX}px`;
+            menu.style.top = `${e.pageY}px`;
+            
+            const close = () => { menu.classList.add('hidden'); document.removeEventListener('click', close); };
+            setTimeout(() => document.addEventListener('click', close), 10);
+        }
+
+        async function triggerDelete() {
+            if(!contextTarget || !db) return;
+            if(confirm('Delete message for everyone?')) {
+                const { msgId, convoId } = contextTarget;
+                await db.collection(`conversations/${convoId}/messages`).doc(msgId).update({ deleted: true });
+                
+                // Update Conversation Preview if this was the latest message
+                const convoRef = db.collection('conversations').doc(convoId);
+                const convoSnap = await convoRef.get();
+                const convoData = convoSnap.data();
+                
+                // We don't know for sure if it's the latest without checking, so let's just re-fetch the actual latest
+                const latestSnap = await db.collection(`conversations/${convoId}/messages`)
+                    .where('deleted', '==', false)
+                    .orderBy('createdAt', 'desc')
+                    .limit(1).get();
+                
+                if (!latestSnap.empty) {
+                    const lastMsg = latestSnap.docs[0].data();
+                    await convoRef.update({
+                        lastMessagePreview: lastMsg.type === 'image' ? '📷 Image' : lastMsg.text,
+                        lastMessageAt: lastMsg.createdAt || firebase.firestore.FieldValue.serverTimestamp(),
+                        lastMessageSenderId: lastMsg.senderId
+                    });
+                } else {
+                    // No messages left
+                    await convoRef.update({
+                        lastMessagePreview: 'No messages',
+                        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastMessageSenderId: ''
+                    });
+                }
+                showToast('Message deleted');
+            }
+        }
+
+        async function triggerEdit() {
+            if(!contextTarget || !db) return;
+            const doc = await db.collection(`conversations/${contextTarget.convoId}/messages`).doc(contextTarget.msgId).get();
+            const data = doc.data();
+            const newText = prompt('Edit message:', data.text);
+            if(newText && newText.trim() !== data.text) {
+                if(!isMessageSafe(newText)) { showToast('Blocked: Restricted language.'); return; }
+                await db.collection(`conversations/${contextTarget.convoId}/messages`).doc(contextTarget.msgId).update({ 
+                    text: newText.trim(), 
+                    isEdited: true, 
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+                });
+            }
+        }
+
+        async function addReaction(emoji) {
+            if(!contextTarget) return;
+            const ref = db.collection(`conversations/${contextTarget.convoId}/messages`).doc(contextTarget.msgId);
+            db.runTransaction(async (transaction) => {
+                const sfDoc = await transaction.get(ref);
+                const data = sfDoc.data();
+                const reactions = data.reactions || {};
+                reactions[emoji] = (reactions[emoji] || 0) + 1;
+                transaction.update(ref, { reactions });
+            });
+        }
+
+        async function openForwardModal() {
+            if(!contextTarget) return;
+            const modal = document.getElementById('forward-modal');
+            const list = document.getElementById('forward-list');
+            modal.classList.add('active');
+            
+            list.innerHTML = '<i class="fas fa-spinner fa-spin p-4"></i>';
+            const snap = await db.collection('conversations').where('memberIds', 'array-contains', currentUser.uid).get();
+            
+            let html = '';
+            snap.forEach(doc => {
+                const data = doc.data();
+                const otherNames = data.names ? Object.values(data.names).filter(n => n !== currentUser.displayName).join(', ') : 'Unknown Chat';
+                const displayName = data.isDirectMessage ? otherNames : (data.groupName || 'Unnamed Group');
+                
+                html += `
+                    <div class="flex items-center justify-between bg-white/5 p-2 rounded hover:bg-white/10 cursor-pointer transition mb-1" onclick="executeForward('${doc.id}')">
+                        <div class="text-sm font-bold truncate">${displayName}</div>
+                        <i class="fas fa-chevron-right text-gray-500 text-xs"></i>
+                    </div>
+                `;
+            });
+            list.innerHTML = html || '<div class="text-xs text-gray-400">No chats found.</div>';
+        }
+
+        async function executeForward(targetConvoId) {
+            if(!contextTarget) return;
+            try {
+                const msgDoc = await db.collection(`conversations/${contextTarget.convoId}/messages`).doc(contextTarget.msgId).get();
+                const msgData = msgDoc.data();
+                
+                await db.collection(`conversations/${targetConvoId}/messages`).add({
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName,
+                    text: msgData.text || '',
+                    type: msgData.type || 'text',
+                    imageUrl: msgData.imageUrl || '',
+                    isForwarded: true,
+                    forwardedFrom: msgData.senderName,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showToast('Forwarded!');
+                closeModals();
+            } catch(e) { showToast('Error forwarding.'); }
         }
 
         function showBlocked(blocked) {
             const input = document.getElementById('chat-input-container');
             const banner = document.getElementById('blocked-status');
-            if (blocked) {
+            if (blocked && input && banner) {
                 input.classList.add('hidden');
                 banner.classList.remove('hidden');
             }
+        }
+
+        async function viewOtherProfile(userId) {
+            const uDoc = await db.collection('users').doc(userId).get();
+            if(!uDoc.exists) return;
+            const u = uDoc.data();
+            
+            const stats = u.stats || { gamesPlayed: 0, favoritesCount: 0 };
+
+            document.getElementById('profile-modal').classList.add('active');
+            const content = document.querySelector('#profile-modal .space-y-6');
+            content.innerHTML = `
+                <div class="flex flex-col items-center gap-4 text-center">
+                    <img src="${u.avatarUrl}" class="w-24 h-24 rounded-full border-4 border-white/10 shadow-2xl">
+                    <div>
+                        <h2 class="text-2xl font-black">${u.username}</h2>
+                        <p class="text-gray-400 text-sm mt-1">@${u.username.toLowerCase()}</p>
+                    </div>
+                </div>
+                <div class="bg-white/5 p-4 rounded-xl border border-white/10 shadow-inner">
+                    <div class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Bio</div>
+                    <div class="text-sm leading-relaxed">${u.bio || 'This user prefers to stay mysterious.'}</div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white/5 p-3 rounded-lg text-center border border-white/5">
+                        <div class="text-xl font-bold">${stats.gamesPlayed || 0}</div>
+                        <div class="text-[10px] text-gray-500 uppercase">Games Played</div>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-lg text-center border border-white/5">
+                        <div class="text-xl font-bold">${stats.favoritesCount || 0}</div>
+                        <div class="text-[10px] text-gray-500 uppercase">Favorites</div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="blockUser('${userId}')" class="flex-1 py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 font-bold rounded-lg border border-red-500/20 transition">
+                        <i class="fas fa-ban mr-2"></i>Block User
+                    </button>
+                    <button onclick="toggleModal('profile-modal')" class="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition">
+                        Close
+                    </button>
+                </div>
+            `;
+            // Temporary hide the standard save buttons for viewing mode
+            document.querySelector('#profile-modal .flex.gap-4').style.display = 'none';
+        }
+
+        async function blockUser(userId) {
+            if(!confirm('Are you sure you want to block this user?')) return;
+            try {
+                await db.collection('users').doc(currentUser.uid).collection('blocked').doc(userId).set({
+                    blockedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast('User Blocked');
+                toggleModal('profile-modal');
+                loadFriendsList();
+            } catch(e) { showToast('Error blocking user.'); }
         }
 
         let typingTimeout = null;
@@ -1407,6 +1707,14 @@
             const inp = document.getElementById('chat-input');
             const txt = inp.value.trim();
             if(!txt || !currentUser || !db) return;
+
+            // Chat Moderation Filter
+            if(!isMessageSafe(txt)) {
+                showToast('Message blocked: Contains restricted language.');
+                inp.value = '';
+                return;
+            }
+
             inp.value = '';
             
             db.collection(`conversations/${conversationId}/messages`).add({
@@ -1423,6 +1731,94 @@
             });
         }
 
+        async function handleChatImageUpload(conversationId) {
+            const file = document.getElementById('chat-image-input').files[0];
+            if (!file) return;
+
+            showToast('Uploading image...');
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+
+            img.onload = () => {
+                const max = 400; // Limit chat images to 400px width for performance
+                const ratio = Math.min(max / img.width, max / img.height);
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.6);
+
+                db.collection(`conversations/${conversationId}/messages`).add({
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName,
+                    text: '', type: 'image', imageUrl: compressed,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), deleted: false
+                });
+
+                db.collection('conversations').doc(conversationId).update({
+                    lastMessagePreview: '📷 Image',
+                    lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastMessageSenderId: currentUser.uid,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast('Image sent!');
+            };
+        }
+
+        function parseMessageText(text) {
+            if(!text) return '';
+            
+            // Regex to find URLs
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            let finalHtml = text.replace(urlRegex, '<a href="$1" target="_blank" class="text-blue-300 underline break-all">$1</a>');
+
+            const urls = text.match(urlRegex);
+            if (urls) {
+                urls.forEach(url => {
+                    const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+                    if (ytMatch) {
+                        const videoId = ytMatch[1];
+                        // Adding origin and enablejsapi fixes common 'configuration' errors on different environments
+                        const origin = window.location.origin !== 'null' ? `&origin=${window.location.origin}` : '';
+                        finalHtml += `
+                            <div class="mt-2 bg-black/40 rounded-lg p-1 border border-white/10 max-w-sm">
+                                <iframe class="w-full aspect-video rounded" 
+                                    src="https://www.youtube.com/embed/${videoId}?enablejsapi=1${origin}" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen
+                                    referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                                <div class="p-2 text-[10px] text-gray-400 font-bold uppercase tracking-tighter"><i class="fab fa-youtube text-red-500 mr-1"></i> YouTube Video</div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            return finalHtml;
+        }
+
+        function isMessageSafe(text) {
+            const normalized = text.toLowerCase()
+                .replace(/[1!|]/g, 'i')
+                .replace(/[3]/g, 'e')
+                .replace(/[4@]/g, 'a')
+                .replace(/[0]/g, 'o')
+                .replace(/[5$]/g, 's')
+                .replace(/[7]/g, 't')
+                .replace(/[8]/g, 'b')
+                .replace(/[(]/g, 'c')
+                .replace(/[\W_]/g, ''); // Remove all symbols and spaces for deep check
+
+            // Forbidden patterns (Racial & Homophobic slurs)
+            const blacklist = [
+                'nigger', 'nigga', 'faggot', 'fag', 'kike', 'tranny', 'retard'
+            ];
+
+            return !blacklist.some(slur => normalized.includes(slur));
+        }
+
         async function loadAdminCatalog() {
             if(userRole !== 'owner' && userRole !== 'mod') return;
             const content = document.getElementById('admin-content');
@@ -1433,9 +1829,9 @@
                         <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro')" class="modal-input w-full">
                         <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
                         <select id="admin-add-type" class="modal-input w-full"><option value="games">Games</option><option value="media">Media</option><option value="browsers">Browsers</option></select>
-                        <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
-                        <input type="text" id="admin-add-img" placeholder="Cover Image URL (opt)" class="modal-input w-full">
-                        <input type="text" id="admin-add-icon" placeholder="Icon HTML (e.g. <i class='fas fa-star'></i>)" class="modal-input w-full">
+                        <input type="text" id="admin-add-url" placeholder="Game URL (Source)" class="modal-input w-full">
+                        <input type="text" id="admin-add-img" placeholder="Background Link (Hero Image)" class="modal-input w-full">
+                        <input type="text" id="admin-add-icon" placeholder="Icon Link (Logo Image)" class="modal-input w-full">
                         <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
                     </div>
                     <div class="flex gap-2 mt-4">
@@ -1635,7 +2031,7 @@
             const img = document.getElementById('admin-add-img').value.trim();
             const icon = document.getElementById('admin-add-icon').value.trim();
             const desc = document.getElementById('admin-add-desc').value.trim();
-            if(!docId || !title || !url) { showToast('ID, Title, and URL are required'); btn.textContent = originalText; return; }
+            if(!docId || !title || !url) { showToast('ID, Title, and Game URL are required'); btn.textContent = originalText; return; }
             try {
                 await db.collection(type).doc(docId).set({
                     id: docId, title, url, img, icon, desc: desc || '', addedBy: currentUser.uid, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2108,11 +2504,13 @@
                 tile.dataset.index = index;
                 tile.style.animationDelay = `${index * 0.04}s`;
                 let innerContent = '';
-                if (game.img) {
+                if (game.icon && game.icon.startsWith('http')) {
+                    innerContent = `<img src="${game.icon}" alt="${game.title}" class="game-logo" onerror="handleImgError(this)">`;
+                } else if (game.img) {
                     const imgClass = game.isLogo ? 'game-logo' : '';
                     innerContent = `<img src="${game.img}" alt="${game.title}" class="${imgClass}" data-fallback="${game.fallbackImg || ''}" onerror="handleImgError(this)">`;
                 } else if (game.icon) {
-                    innerContent = game.icon;
+                    innerContent = game.icon; // Fallback for old FontAwesome HTML if any
                 } else if (game.placeholder) {
                     innerContent = `<div class="placeholder">${game.placeholder}</div>`;
                 } else {
@@ -2169,9 +2567,16 @@
                 gameInfo.style.opacity = '1';
             }, FADE_MS);
 
-            const newBg = `url(${game.bg})`;
+            const bgImg = game.bg || game.img || 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?q=80&w=1920';
+            const newBg = `url(${bgImg})`;
             bgOverlay.style.setProperty('--new-bg', newBg);
+            
+            // Sync Ken Burns and Transition
             bgOverlay.classList.add('transitioning');
+            bgOverlay.style.animation = 'none';
+            void bgOverlay.offsetWidth;
+            bgOverlay.style.animation = 'kenBurns 30s infinite alternate ease-in-out';
+
             setTimeout(() => {
                 bgOverlay.style.setProperty('--current-bg', newBg);
                 bgOverlay.classList.remove('transitioning');
@@ -2271,39 +2676,91 @@
 
         function updateProfileDisplay() {
             const profile = loadProfile();
+            const modal = document.getElementById('profile-modal');
+            const content = modal.querySelector('.space-y-6');
+            
+            // Restore original "Edit Profile" layout if it was changed by viewOtherProfile
+            content.innerHTML = `
+                <div class="flex items-center gap-6">
+                    <div class="relative profile-avatar">
+                        <img id="profile-pic-preview" src="${profile.profilePic}" alt="Profile">
+                        <input type="file" id="profile-pic-input" accept="image/*" class="hidden">
+                        <label for="profile-pic-input" class="upload-button">
+                            <i class="fas fa-camera text-white text-sm"></i>
+                        </label>
+                    </div>
+                    <div class="flex-1">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2">Username</label>
+                            <input type="text" id="profile-name" value="${profile.username}" placeholder="Enter username" class="modal-input w-full">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Bio</label>
+                    <textarea id="profile-bio" placeholder="Tell us about yourself..." class="modal-input h-20 resize-none w-full">${profile.bio || ''}</textarea>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="stat-box">
+                        <div class="stat-value" id="stats-played">${profile.gamesPlayed}</div>
+                        <div class="stat-label">Games Played</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stats-favorites">${profile.favorites}</div>
+                        <div class="stat-label">Favorites</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stats-time">${Math.floor(profile.totalTime / 60)}h</div>
+                        <div class="stat-label">Total Time</div>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="saveProfile()" class="btn-primary flex-1">
+                        <i class="fas fa-save"></i><span>Save Profile</span>
+                    </button>
+                    <button onclick="closeModals()" class="btn-secondary flex-1">
+                        Cancel
+                    </button>
+                </div>
+                <div class="mt-6 pt-4 border-t border-white/10 flex gap-4">
+                    <button id="profile-login-btn" class="flex-1 bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded transition" onclick="closeModals(); toggleModal('auth-modal'); event.stopPropagation();" style="${currentUser ? 'display:none' : 'display:block'}">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login / Switch
+                    </button>
+                    <button id="profile-logout-btn" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded transition" onclick="handleLogout(); event.stopPropagation();" style="${currentUser ? 'display:block' : 'display:none'}">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Sign Out
+                    </button>
+                </div>
+            `;
+            
             document.getElementById('header-profile-pic').src = profile.profilePic;
             document.getElementById('username-display').textContent = profile.username;
-            document.getElementById('profile-name').value = profile.username;
-            document.getElementById('profile-bio').value = profile.bio;
-            document.getElementById('profile-pic-preview').src = profile.profilePic;
-            document.getElementById('stats-played').textContent = profile.gamesPlayed;
-            document.getElementById('stats-favorites').textContent = profile.favorites;
-            document.getElementById('stats-time').textContent = Math.floor(profile.totalTime / 60) + 'h';
+
+            // Re-attach the file input listener since we just replaced the DOM element
+            const pInput = document.getElementById('profile-pic-input');
+            if(pInput) {
+                pInput.addEventListener('change', handleProfilePicChange);
+            }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('profile-pic-input').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                const url = URL.createObjectURL(file);
-
-                img.onload = () => {
-                    const max = 128;
-                    const ratio = Math.min(max / img.width, max / img.height);
-                    canvas.width = img.width * ratio;
-                    canvas.height = img.height * ratio;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
-                    document.getElementById('profile-pic-preview').src = compressed;
-                    URL.revokeObjectURL(url);
-                };
-                img.src = url;
-            });
-        });
+        function handleProfilePicChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                const max = 128;
+                const ratio = Math.min(max / img.width, max / img.height);
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                document.getElementById('profile-pic-preview').src = compressed;
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
 
         function recordGamePlay(gameId) {
             const profile = loadProfile();
