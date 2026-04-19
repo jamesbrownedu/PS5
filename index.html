@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Dashboard - PS5 Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
+
+        :root { --ps-blue: #0070d1; --ps-bg: #1f1f1f; }
+
+        body { margin:0; padding:0; font-family:'Inter',sans-serif; background-color:#000; color:white; overflow:hidden; height:100vh; user-select:none; }
+
+        #bg-overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; transition:background 0.8s ease-in-out,transform 1.5s ease-out; background-size:cover; background-position:center; filter:brightness(0.4) saturate(1.2); transform:scale(1.05); }
+        .bg-zoom { transform:scale(1.1) !important; }
+        .header-gradient { background:linear-gradient(to bottom,rgba(0,0,0,0.8) 0%,rgba(0,0,0,0) 100%); }
+
+        .game-tile { position:relative; width:140px; height:140px; border-radius:12px; transition:all 0.3s cubic-bezier(0.25,1,0.5,1); cursor:pointer; border:2px solid transparent; background:#2a2a2a; flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .game-tile.focused { transform:scale(1.15); border-color:rgba(255,255,255,0.9); box-shadow:0 10px 30px rgba(0,0,0,0.5),0 0 15px rgba(255,255,255,0.2); z-index:10; }
+        .game-tile img { width:100%; height:100%; object-fit:cover; display:block; }
+        .game-tile img.game-logo { width:85%; height:85%; object-fit:contain; }
+
+        .game-title-popup { position:absolute; bottom:-40px; left:50%; transform:translateX(-50%); white-space:nowrap; opacity:0; transition:opacity 0.2s; font-size:14px; font-weight:500; text-shadow:0 2px 4px rgba(0,0,0,0.5); }
+        .game-tile.focused .game-title-popup { opacity:1; }
+
+        .selection-glow { position:absolute; inset:-4px; border-radius:16px; border:2px solid white; opacity:0; pointer-events:none; }
+        .focused .selection-glow { animation:pulse 2s infinite; opacity:1; }
+        @keyframes pulse { 0%{opacity:0.4} 50%{opacity:1} 100%{opacity:0.4} }
+
+        .scroll-container { display:flex; gap:20px; padding:20px 60px; transition:transform 0.6s cubic-bezier(0.25,1,0.5,1); align-items:center; }
+
+        .media-btn { position:relative; padding:8px 16px; font-size:20px; color:#999; transition:color 0.3s; cursor:pointer; }
+        .media-btn.active { color:white; font-weight:bold; }
+        .media-btn.active::after { content:''; position:absolute; bottom:-2px; left:50%; transform:translateX(-50%); width:20px; height:3px; background:white; border-radius:2px; }
+
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); z-index:100; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s ease; }
+        .modal-overlay.active { opacity:1; pointer-events:auto; }
+        .modal-content { background:#1a1a1a; border:1px solid #333; border-radius:20px; padding:40px; width:90%; max-width:500px; transform:scale(0.9); transition:transform 0.3s ease; }
+        .modal-overlay.active .modal-content { transform:scale(1); }
+
+        .launch-screen { position:fixed; inset:0; background:black; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 1s ease; }
+        .launch-screen.active { opacity:1; pointer-events:auto; }
+
+        .placeholder { font-size: 3rem; font-weight: bold; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body class="bg-black">
+
+    <div id="bg-overlay"></div>
+
+    <div id="search-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-6">Search Games</h2>
+            <input type="text" placeholder="Search games..." class="w-full bg-gray-800 border-none rounded-lg p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none" oninput="filterGames()">
+            <div class="mt-6 text-gray-400 text-sm">Recently played: Spider-Man, Uncharted...</div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-6">Settings</h2>
+            <div class="space-y-4">
+                <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>Account Management</span><i class="fas fa-chevron-right"></i></div>
+                <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>Network & Sound</span><i class="fas fa-chevron-right"></i></div>
+                <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>System Update</span><i class="fas fa-chevron-right text-green-400"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="launch-screen" class="launch-screen">
+        <div class="w-24 h-24 mb-8">
+            <svg viewBox="0 0 100 100" class="animate-pulse">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="2" opacity="0.2"/>
+                <path d="M50 5 L50 95 M5 50 L95 50" stroke="white" stroke-width="1" opacity="0.3"/>
+            </svg>
+        </div>
+        <h2 id="launch-title" class="text-3xl font-light tracking-widest uppercase">Loading...</h2>
+    </div>
+
+    <header class="fixed top-0 w-full h-32 header-gradient z-50 flex justify-between items-start px-12 pt-10">
+        <nav class="flex items-center space-x-8">
+            <div id="btn-games" class="media-btn active" onclick="switchCategory('games')">Games</div>
+            <div id="btn-media" class="media-btn" onclick="switchCategory('media')">Media</div>
+            <div id="btn-browsers" class="media-btn" onclick="switchCategory('browsers')">Browsers</div>
+        </nav>
+        <div class="flex items-center space-x-8 text-xl">
+            <i class="fas fa-search cursor-pointer hover:text-blue-400 transition" onclick="toggleModal('search-modal')"></i>
+            <i class="fas fa-cog cursor-pointer hover:text-blue-400 transition" onclick="toggleModal('settings-modal')"></i>
+            <div class="flex items-center space-x-2 cursor-pointer group" onclick="toggleModal('settings-modal')">
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden border border-green-400 group-hover:scale-110 transition">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User">
+                </div>
+                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+            </div>
+            <div id="clock" class="font-medium text-lg ml-4">4:42 PM</div>
+        </div>
+    </header>
+
+    <main class="h-full flex flex-col justify-center">
+        <div class="relative overflow-hidden w-full pt-20">
+            <div id="game-list" class="scroll-container"></div>
+        </div>
+        <div class="px-16 mt-16 transition-all duration-500" id="game-info">
+            <h1 id="active-title" class="text-5xl font-bold mb-2">Explore</h1>
+            <p id="active-desc" class="text-gray-300 text-lg max-w-xl">Find out what's happening in the world of gaming today.</p>
+            <div class="mt-8 flex space-x-4">
+                <button onclick="launchCurrentGame()" class="bg-white text-black px-10 py-3 rounded-full font-bold flex items-center space-x-2 transform transition hover:scale-105 active:scale-95">
+                    <i class="fas fa-play"></i><span id="btn-action-text">Start</span>
+                </button>
+                <button onclick="toggleModal('settings-modal')" class="bg-gray-800/80 backdrop-blur-md text-white px-6 py-3 rounded-full font-bold transform transition hover:scale-105">
+                    <i class="fas fa-ellipsis-h"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const rawGameData = [
+            { id:'store', type:'games', title:'PlayStation Store', icon:'<i class="fas fa-shopping-bag text-5xl text-blue-400"></i>', url:'https://store.playstation.com/', bg:'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?q=80&w=1920', desc:'Browse the latest games and deals in the official PlayStation Store.' },
+            { id:'explore', type:'games', title:'Explore', icon:'<i class="fas fa-rocket text-5xl text-white"></i>', url:'https://blog.playstation.com/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Discover news, trailers, and community highlights across PS5.' },
+            { id:'baby-sniper', type:'games', title:'Baby Sniper In Vietnam', url:'https://drank-was-here.b-cdn.net/games/Baby-Sniper-In-Vietnam/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'B🅱️' },
+            { id:'bacon-may-die', type:'games', title:'Bacon May Die', url:'https://s.gameszur.com/gamehub/bacon-may-die/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Ba🅱️' },
+            { id:'baseball-bros', type:'games', title:'Baseball Bros', url:'https://nealfun.app/game/baseball-bros/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bas🅱️' },
+            { id:'basket-bros', type:'games', title:'Basket Bros', url:'https://basketbros-unblocked.github.io/a7/basket-bros/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bat🅱️' },
+            { id:'bitlife', type:'games', title:'BitLife', url:'https://theunblock3dlabs.github.io/sourced/play/bitlife/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bi🅱️' },
+            { id:'bloons-td5', type:'games', title:'Bloons TD5', url:'https://mgg658.github.io/zbtd5.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bl🅱️' },
+            { id:'bottle-flip-3d', type:'games', title:'Bottle Flip 3D', url:'https://55gms.com/misc/BottleFlip3D/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bo🅱️' },
+            { id:'brawl-stars-sim', type:'games', title:'Brawl Stars Sim', url:'https://millanirbytes.frhumannet.com/cdn/games/brawl-simulator-3d/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Br🅱️' },
+            { id:'brotato', type:'games', title:'Brotato', url:'https://learning.trogiang.vn/games/brotato2/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bro🅱️' },
+            { id:'burrito-bison', type:'games', title:'Burrito Bison Launcha Libre', url:'https://html-classic.itch.zone/html/7437859/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Bu🅱️' },
+            { id:'cloverpit', type:'games', title:'Cloverpit', url:'https://cdn.jsdelivr.net/gh/web-ports/clover-pit@main/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'C🏆' },
+            { id:'cod-zombies', type:'games', title:'Cod Zombies', url:'https://nzp.gay/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Co🏆' },
+            { id:'cookie-clicker', type:'games', title:'Cookie Clicker', url:'https://orcatech2711.github.io/nano/games/cookieclicker/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Coo🏆' },
+            { id:'deadshot', type:'games', title:'DeadShot', url:'https://deadshot.io/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'D🎯' },
+            { id:'drive-mad', type:'games', title:'Drive Mad', url:'https://cdn.jsdelivr.net/gh/genizy/dmad-poki@49b5ab6b987f5f3be58f9dae59c92e8fc1aab9b0/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Dr🎯' },
+            { id:'down-town-james-brown', type:'games', title:'Down Town James Brown', url:'https://cdn.jsdelivr.net/gh/bubbls/ugs-singlefile@main/AASINGLEFILE.html', desc:'Play this awesome game!', bg:'https://img.icons8.com/color/1200/controller.jpg', placeholder:'Do🎯' },
+            { id:'flappy-bird', type:'games', title:'Flappy Bird', url:'https://upload.wikimedia.org/wikipedia/en/thumb/0/0a/Flappy_Bird_icon.png/250px-Flappy_Bird_icon.png', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'F⚽' },
+            { id:'fnaf-world', type:'games', title:'FNAF (Five Nights At Freddy\'s) World', url:'https://irv77.github.io/hd_fnaf/w/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'FN⚽' },
+            { id:'fnaf-pizza-simulator', type:'games', title:'FNAF Pizza Simulator', url:'https://irv77.github.io/hd_fnaf/ps/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'FNP⚽' },
+            { id:'fnaf-sister-location', type:'games', title:'FNAF Sister Location', url:'https://irv77.github.io/hd_fnaf/sl/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'FNS⚽' },
+            { id:'five-nights-ultimate-custom-night', type:'games', title:'Five Nights At Freddy\'s Ultimate Custom Night', url:'https://irv77.github.io/hd_fnaf/ucn/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'FNN⚽' },
+            { id:'football-bros', type:'games', title:'Football Bros', url:'https://script.google.com/macros/s/AKfycbxjYzXDX0iopyVPSDgG8_sTlQPpjv5KYMdsOtLXzYrQYdHPmHdswUb5NTXedQ3RK8XyoQ/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Fo⚽' },
+            { id:'geometry-dash', type:'games', title:'Geometry Dash', url:'https://rawcdn.githack.com/genizy/google-class/main/gdlite/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'G🎮' },
+            { id:'gladihoppers', type:'games', title:'Gladihoppers', url:'https://classroomjq.github.io/gladihoppers/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Gla🎮' },
+            { id:'granny', type:'games', title:'Granny', url:'https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/sdk.js', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Gra🎮' },
+            { id:'iron-snout', type:'games', title:'Iron Snout', url:'https://classroom8.github.io/iron-snout/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'I🎲' },
+            { id:'karate-bros', type:'games', title:'Karate Bros', url:'https://karatebros.io/', desc:'Play this awesome game!', bg:'https://geodashlite.io/data/image/game/karate-bros.jpg', placeholder:'K🏀' },
+            { id:'kart-bros', type:'games', title:'Kart Bros', url:'https://kart-bros.io/kart-bros.embed', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Kar🏀' },
+            { id:'melon-sandbox', type:'games', title:'Melon Sandbox', url:'https://playhop.com/dist-app/260481?header=no&skip-guard=1&utm_source=parent_window_api&utm_medium=playgama&flags={%22adv_types_disabled%22:16}', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'M🎪' },
+            { id:'nefarius', type:'games', title:'Nefarius', url:'https://isolated.ungrounded.net/alternate/5859000/5859157_alternate_271251_r3.zip/?NewgroundsAPI_PublisherID=1&NewgroundsAPI_SandboxID=69d84dd11198e&NewgroundsAPI_SessionID=&NewgroundsAPI_UserName=%26lt%3Bdeleted%26gt%3B&NewgroundsAPI_UserID=0&ng_username=%26lt%3Bdeleted%26gt%3B', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'N🏴' },
+            { id:'retro-bowl', type:'games', title:'Retro-Bowl', url:'https://cdn.jsdelivr.net/gh/genizy/assets@main/retro-bowl/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'R🚀' },
+            { id:'rocket-league', type:'games', title:'Rocket League', url:'https://rocketgoal.io/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Ro🚀' },
+            { id:'rouge-souls-1', type:'games', title:'Rouge Souls 1', url:'https://script.google.com/macros/s/AKfycbz6wsJGGaRbc_voawFifLikzf38X3m3bFN_apBYsw3WZlzCpRwcCK3Q6Q4kAWsZ10BH7Q/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Rou🚀' },
+            { id:'rouge-souls-2', type:'games', title:'Rouge Souls 2', url:'https://script.google.com/macros/s/AKfycbya2jmrLYgSkmRh3LXqH0bdWSvxuUbyQikOxtPU9v0A8WUFAeatt7Fwy0AOvzeHJwhT/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Rou2🚀' },
+            { id:'scritchy-scratchy', type:'games', title:'Scritchy Scratchy', url:'https://itch.io/embed-upload/16388344?color=333333', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'S🏅' },
+            { id:'shell-shockers', type:'games', title:'Shell Shockers', url:'https://d.clever.com.drmarcells.com/equations/shellshock/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sh🏅' },
+            { id:'slime-rancher', type:'games', title:'Slime Rancher', url:'https://cdn.jsdelivr.net/gh/web-ports/slime-ranchers@main/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sl🏅' },
+            { id:'slither-io', type:'games', title:'Slither.IO', url:'https://strongdog.com/real-slither.io/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sli🏅' },
+            { id:'snow-rider-3d', type:'games', title:'Snow-Rider3D', url:'https://itsvijaysingh.github.io/Snow-Rider3D/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sn🏅' },
+            { id:'snowball-io', type:'games', title:'Snowball.IO', url:'https://snowball-io.io/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sno🏅' },
+            { id:'soccer-bros', type:'games', title:'Soccer Bros', url:'https://soccerbros.gg/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Soc🏅' },
+            { id:'subway-surfers', type:'games', title:'Subway Surfers', url:'https://pizzaedition.win/assets/allgames/subwaysurfers/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Su🏅' },
+            { id:'survivor-io', type:'games', title:'Survivor.IO', url:'https://html5.gamedistribution.com/rvvASMiM/f1c451e586c04b4c8cba01b0c50d9090/index.html?gd_sdk_referrer_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_api_as3_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fas3%2Flatest.swf&mp_api_as3_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-as%2F&mp_api_id=5418&mp_api_js_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fjs%2Flatest.js&mp_api_js_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-js%2F&mp_assets=https%3A%2F%2Fs2.minijuegosgratis.com%2F&mp_embed=0&mp_game_id=243226&mp_game_uid=survivor-io&mp_game_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_int=1&mp_locale=en_US&mp_player_type=IFRAME&mp_site_https_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_site_name=miniplay.com&mp_site_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_timezone=America%2FChicago&mp_view_type=&mini_signature=5c1dd14bd056dfdc48b7d97ef3f2d3c2&xdm_e=https%3A%2F%2Fwww.miniplay.com&xdm_c=default1415&xdm_p=1&gd_zone_config=eyJwYXJlbnRVUkwiOiJodHRwczovL3d3dy5taW5pcGxheS5jb20vZ2FtZS9zdXJ2aXZvci1pbyIsInBhcmVudERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsInRvcERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsImhhc0ltcHJlc3Npb24iOmZhbHNlLCJsb2FkZXJFbmFibGVkIjp0cnVlLCJob3N0IjoiaHRtbDUuZ2FtZWRpc3RyaWJ1dGlvbi5jb20iLCJ2ZXJzaW9uIjoiMS41LjE4In0%253D', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sur🏅' },
+            { id:'swords-and-souls', type:'games', title:'Swords And Souls', url:'https://script.google.com/macros/s/AKfycbwpk3_eQ-NLDyEjcqWn-txMpuRmeF2pgck1awpz9tkMNL79tQ_hYiqC3hKdWhXXXK1f1g/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Sw🏅' },
+            { id:'terraria', type:'games', title:'Terraria', url:'https://terrariamods-scratch.github.io/TerrariaStamped/embed/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'T🏆' },
+            { id:'the-binding-of-isaac-demo', type:'games', title:'The Binding of Isaac: Demo', url:'https://uploads.ungrounded.net/ruffle_wrapper/ruffleembed.html?v=1.2.3&browsermode=default&props=%7B%22ruffle%22%3A%22%2Fruffle_wrapper%2Flib%2Fruffle.js%3F1775708382%22%2C%22public_path%22%3A%22%2Fruffle_wrapper%2Flib%2F%22%2C%22swf%22%3A%22https%3A%2F%2Fuploads.ungrounded.net%2F581000%2F581168_Isaac_demo_Secure.swf%3F1318109425%22%2C%22vars%22%3A%7B%22NewgroundsAPI_PublisherID%22%3A1%2C%22NewgroundsAPI_SandboxID%22%3A%2269d96f699a6dc%22%2C%22NewgroundsAPI_SessionID%22%3A%22%22%2C%22NewgroundsAPI_UserName%22%3A%22%26lt%3Bdeleted%26gt%3B%22%2C%22NewgroundsAPI_UserID%22%3A0%2C%22ng_username%22%3A%22%26lt%3Bdeleted%26gt%3B%22%7D%2C%22width%22%3A800%2C%22height%22%3A600%2C%22icon%22%3A%22https%3A%2F%2Fpicon.ngfiles.com%2F581000%2Fflash_581168_card.webp%3Ff1669677110%22%2C%22warnOnUnsupportedContent%22%3Afalse%2C%22external%22%3A%22%2Fruffle_wrapper%2Fexternal%2Fruffle-external-input.js%3F1775831699%22%2C%22externalSettings%22%3A%7B%22endpoint%22%3A%22https%3A%2F%2Fwww.newgrounds.com%2Fportal%2Fruffle-options%2F197907%22%2C%22types%22%3A%5B1%5D%7D%7D', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Th🏆' },
+            { id:'the-binding-of-isaac-rebirth', type:'games', title:'The Binding of Isaac: Rebirth', url:'https://learning.trogiang.vn/games/psp/tboir/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Thr🏆' },
+            { id:'the-binding-of-isaac-wrath-of-the-lamb', type:'games', title:'The Binding of Isaac: Wrath of The Lamb', url:'https://script.google.com/macros/s/AKfycbx1-ahIchbUqDQdqB5GJ2-ZxlbPLz1lz7ohzlqUZ41JUrAnGTIPjgLaASGqqV1ToAuZ/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Thw🏆' },
+            { id:'the-binding-of-isaac-wrath-eternal', type:'games', title:'The Binding of Isaac: Wrath of The Lamb Eternal Edition', url:'https://carp.teachmetofish.net/gamefile/boilambeternal.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Thwe🏆' },
+            { id:'tomb-of-the-mask', type:'games', title:'Tomb of the Mask', url:'https://pizzaedition.win/assets/allgames/tomb-of-the-mask/index.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'To🏆' },
+            { id:'townscaper', type:'games', title:'Townscaper', url:'https://oskarstalberg.com/Townscaper/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Tow🏆' },
+            { id:'tung-tung-sahur-horror', type:'games', title:'Tung Tung Sahur Horror', url:'https://learning.trogiang.vn/gamefile/tung.html', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Tu🏆' },
+            { id:'ultrakill', type:'games', title:'Ultrakill', url:'https://cdn.jsdelivr.net/gh/genizy/web-port@master/ultrakill/', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'U🎯' },
+            { id:'wrestle-bros', type:'games', title:'Wrestle Bros', url:'https://script.google.com/macros/s/AKfycbzf61_c1OXDbrsZz4pecMt5cUWDGwGJWXUtlOAoNdBE2acBbblA31lQmATDlBRpFVYiWw/exec', desc:'Play this awesome game!', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'W🏈' },
+            { id:'psplus', type:'games', title:'PlayStation Plus', icon:'<i class="fas fa-plus text-5xl text-yellow-400"></i>', url:'https://www.playstation.com/en-us/ps-plus/', bg:'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1920', desc:'Access monthly games, cloud saves, and online multiplayer perks.' },
+            { id:'dulo-tv', type:'media', title:'Dulo TV', icon:'<i class="fas fa-tv text-5xl text-red-500"></i>', url:'https://dulo.tv/', bg:'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1920', desc:'Watch TV shows and movies on Dulo TV.' },
+            { id:'moon-tv', type:'media', title:'Moon TV', icon:'<i class="fas fa-moon text-5xl text-blue-500"></i>', url:'https://moontv.to/home', bg:'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1920', desc:'Stream content on Moon TV.' },
+            { id:'nikehub-movies', type:'media', title:'NikeHub Movies', icon:'<i class="fas fa-film text-5xl text-green-500"></i>', url:'https://nikehub.org/movies', bg:'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1920', desc:'Watch movies on NikeHub.' },
+            { id:'soundboard', type:'media', title:'SoundBoard', icon:'<i class="fas fa-volume-up text-5xl text-purple-500"></i>', url:'https://soundboardw.net/', bg:'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1920', desc:'Enjoy sounds on SoundBoard.' },
+            { id:'monochrome', type:'media', title:'Monochrome', icon:'<i class="fas fa-music text-5xl text-gray-500"></i>', url:'https://monochrome.tf/', bg:'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1920', desc:'Listen to music on Monochrome.' },
+            { id:'awp', type:'browsers', title:'AWP', icon:'<i class="fas fa-globe text-5xl text-blue-500"></i>', url:'https://awpispeak.cfd/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse the web with AWP.' },
+            { id:'app-hub', type:'browsers', title:'APP Hub', icon:'<i class="fas fa-globe text-5xl text-green-500"></i>', url:'https://howtostudygood-forfree-tips.b-cdn.net/apps/index.html', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Access apps on APP Hub.' },
+            { id:'peak', type:'browsers', title:'Peak', icon:'<i class="fas fa-globe text-5xl text-yellow-500"></i>', url:'https://script.google.com/macros/s/AKfycbzSdpA_iwyB91FA9iIyGgxq9-t_uETpzEsm8J5HKbizABDGSItsLsqb9oLfUcm2SdeM/exec', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with Peak.' },
+            { id:'cherry', type:'browsers', title:'Cherry', icon:'<i class="fas fa-globe text-5xl text-red-500"></i>', url:'https://cherrion.top/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with Cherry.' },
+            { id:'cine-os', type:'browsers', title:'CineOS', icon:'<i class="fas fa-globe text-5xl text-purple-500"></i>', url:'https://cine-os.b-cdn.net/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with CineOS.' },
+            { id:'shadow', type:'browsers', title:'Shadow', icon:'<i class="fas fa-globe text-5xl text-gray-500"></i>', url:'https://easygeo.eclipsecastellon.net/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with Shadow.' },
+            { id:'octorine', type:'browsers', title:'Octorine', icon:'<i class="fas fa-globe text-5xl text-orange-500"></i>', url:'https://d.clever.com.drmarcells.com/search.html', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with Octorine.' },
+            { id:'linkspot', type:'browsers', title:'LinkSpot', icon:'<i class="fas fa-globe text-5xl text-teal-500"></i>', url:'https://linkspotbeta2.vercel.app/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with LinkSpot.' },
+            { id:'overcloaked', type:'browsers', title:'OverCloaked', icon:'<i class="fas fa-globe text-5xl text-indigo-500"></i>', url:'https://overunder5.b-cdn.net/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with OverCloaked.' },
+            { id:'educationate', type:'browsers', title:'Educationate', icon:'<i class="fas fa-globe text-5xl text-pink-500"></i>', url:'https://storage.googleapis.com/educationate/index.html', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Browse with Educationate.' }
+        ];
+
+        const gameIconOverrides = {
+            'baby-sniper': { img:'https://img.itch.zone/aW1nLzE1NDE5NTk2LmpwZw==/original/koNhgv.jpg' },
+            'bacon-may-die': { img:'https://play-lh.googleusercontent.com/W_dghckKR-MD8Hx5YvCpdx3bYNeqrBdZqnMI02JnP5rVH8VqGaQUzdiMXd2wdJGLeP0' },
+            'baseball-bros': { img:'https://nealfun.app/game/baseball-bros/assets/bbbro.png', isLogo:true },
+            'basket-bros': { img:'./favicon.png', isLogo:true },
+            'bitlife': { img:'https://play-lh.googleusercontent.com/fUM-UyywXxjC8soxAZdIlxJrlRRXmql8wkE426SHzft4lJycSKVd2jCYQQX1BEG9Xw' },
+            'bloons-td5': { img:'https://play-lh.googleusercontent.com/LLEUf9Qcd6N2L4nynBArv7wHyvPLiKBJtXjFEfgD4yS80ZJtQREVjIJE_HXFRDAJxQ' },
+            'bottle-flip-3d': { img:'/img/canvas.ico', isLogo:true },
+            'brawl-stars-sim': { img:'https://play-lh.googleusercontent.com/WLJb9DGkxPkiqlvizxSyHnMqPOZATgfd8RH8rEo3L4FM84luI7GYKE8D2qFZNtC2OMsoo-eOy-qquwIRVl-05w' },
+            'brotato': { img:'index.icon.png', isLogo:true },
+            'burrito-bison': { img:'https://play-lh.googleusercontent.com/vpTgm9u7-GzZP_MceTWpDi0HbinXd_4phCoTwf4ZspFL-115FtNRdo_SU1p-khLDnLA' },
+            'cloverpit': { img:'https://play-lh.googleusercontent.com/2CR6ecP2mz281zfOZZoZS4kdZg1WaGfCXdQxdWmt2JkQRDSQG8NhdbgIuH0UepzEyrWTKA7zaqre6xAthebFwyA=w240-h480-rw' },
+            'cod-zombies': { img:'https://img.itch.zone/aW1nLzE1MDk0MzkzLnBuZw==/original/9kZxCr.png' },
+            'cookie-clicker': { img:'https://orteil.dashnet.org/cookieclicker/img/perfectCookie.png' },
+            'deadshot': { img:'https://deadshot.io/promo/thumbnail.png' },
+            'down-town-james-brown': { img:'https://image.thum.io/get/width/600/https://cdn.jsdelivr.net/gh/bubbls/ugs-singlefile@main/AASINGLEFILE.html' },
+            'drive-mad': { img:'https://www.drivemad.com/img/android-chrome-512x512.png' },
+            'fnaf-world': { img:'favicon.ico', isLogo:true },
+            'fnaf-pizza-simulator': { img:'https://play-lh.googleusercontent.com/zDcOTck_4ZjLeJNgil4bpIXUefRUYVqOqlpc8hxeDby8LQh0eZhYDho9U3W_RVg9yuE' },
+            'fnaf-sister-location': { img:'https://play-lh.googleusercontent.com/u9wx5aNNV6Yn4sJpi7uPBiElRnfAp1zUrn8Xqb4Dx_WBoOPHlB6G6gaYLI-mEXyABPnz' },
+            'five-nights-ultimate-custom-night': { img:'https://play-lh.googleusercontent.com/pB7dsLLcRgADtFpEPeKc5mSyAn1E1JzrdQ1V7-Y5hizgub3G8e9UJIc5opC9mYXKSBw' },
+            'flappy-bird': { img:'https://upload.wikimedia.org/wikipedia/en/thumb/0/0a/Flappy_Bird_icon.png/250px-Flappy_Bird_icon.png', isLogo:true },
+            'football-bros': { img:'https://nealfun.app/game/baseball-bros/assets/fbro.png', isLogo:true },
+            'geometry-dash': { img:'https://play-lh.googleusercontent.com/ixHXzBWPmmKWIBxDMfjbIXK10UQCTDvIYOcs_uLXHCRbdsz2siJFYfb7MqckU8eC3Ks' },
+            'gladihoppers': { img:'https://play-lh.googleusercontent.com/HUuFbIPERNbpW2Q72WIqiJ8bKDzIgT_C4PnYvMBuH0wC3B_KvpKmumm1FXhZj3jmRHw' },
+            'granny': { img:'https://play-lh.googleusercontent.com/yT_LBq_tyKeIDohKDsqN_Qt18jGIPUYIxY2C-1-E2YA9Qd60uZW08pua17qBmIiDPA' },
+            'iron-snout': { img:'https://poki.us.com/wp-content/uploads/2025/06/Iron-Snout.png' },
+            'karate-bros': { img:'https://geodashlite.io/data/image/game/karate-bros.jpg' },
+            'melon-sandbox': { img:'https://play-lh.googleusercontent.com/9KgS1cF6vWMF9Fl25S36bKr8zDh0ddkTOeN7WpBcQAE-pKfahG2DjUxbQ8sespNoe3KW3qbcaVD8H6DfNys6' },
+            'nefarius': { img:'https://i.postimg.cc/MXJqfSYs/f7c4f135-5f7c-442e-8eeb-c1560b47391d.png' },
+            'retro-bowl': { img:'https://play-lh.googleusercontent.com/WRM5Y1xZmzcCP1YtO5zl6G2g7CU5c5ZfjX4UVrgi1bpNgkfy-wuB-bQx3kkeRfaGYQ' },
+            'rocket-league': { img:'https://rocketgoal.io/og-image.png' },
+            'rouge-souls-1': { img:'https://cdn3.kongcdn.com/game_icons/0041/3526/Icon.png?i10c=img.resize(width:180,height:180)', isLogo:true },
+            'rouge-souls-2': { img:'https://cdn1.kongcdn.com/game_icons/0056/8757/250x200_thin_border.png?i10c=img.resize(width:180,height:180)', isLogo:true },
+            'scritchy-scratchy': { img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3948120/c611eca1a251a74ffcf25250161aa766480f6493/capsule_616x353.jpg?t=1773831686' },
+            'shell-shockers': { img:'https://www.shellshock.io/img/previewImage_shellShockers.webp' },
+            'slime-rancher': { img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/433340/header.jpg?t=1758651509' },
+            'slither-io': { img:'https://play-lh.googleusercontent.com/tRpviKT0mUi47iAaBne_yhe_xIuFzpW1mCIqoW457tNsKZddZHwiCUR2ga-rU3VXw04' },
+            'snow-rider-3d': { img:'https://snowrider3d.run/covers/1757785613967.webp' },
+            'snowball-io': { img:'https://snowball-io.io/snowball_share.jpg' },
+            'soccer-bros': { img:'https://soccerbros.gg/favicon.png' },
+            'subway-surfers': { img:'https://play-lh.googleusercontent.com/6dM_s_iNdPfxTfvuZ06r7Kz41DG1ivkjCI-oBWjR-c2NUXf7S2x9TmyOmKljYGDpBVg' },
+            'survivor-io': { img:'https://play-lh.googleusercontent.com/os7JIk6PtULMjal93noyeGqWKjxQ_35sXrT708XxHq_ORk_AIhqW3_iIm8-OjuRLyDDb_MVs5EZAwC4aXIbgtA' },
+            'swords-and-souls': { img:'https://cdn1.kongcdn.com/game_icons/0063/9685/250x200_BETTER.png?i10c=img.resize(width:180,height:180)', isLogo:true },
+            'terraria': { img:'https://play-lh.googleusercontent.com/BoAvMI_6JGNRBp_3gFaVuLuqW_4J-rjtbR_giKFoJRvZmDiPtDlnLMur9cT7sTTfeos' },
+            'the-binding-of-isaac-demo': { img:'https://picon.ngfiles.com/581000/flash_581168_card.webp?f1669677110' },
+            'the-binding-of-isaac-rebirth': { img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/250900/capsule_616x353.jpg?t=1731977365' },
+            'the-binding-of-isaac-wrath-of-the-lamb': { img:'https://i.postimg.cc/90rrYCZW/6bbab0d8-45d1-4ecc-baa4-079b937dd30e.png' },
+            'the-binding-of-isaac-wrath-eternal': { img:'https://i.postimg.cc/4yDNvtXP/1968ed7c-1eed-4dc2-bc81-0d97230e1373.png' },
+            'tomb-of-the-mask': { img:'https://image.winudf.com/v2/image1/Y29tLnBsYXlnZW5kYXJ5LnRvbV9pY29uXzE3MzEwMDU1NTdfMDQ5/icon.webp?fakeurl=1&type=.webp&w=512' },
+            'townscaper': { img:'TemplateData/favicon.ico', isLogo:true },
+            'tung-tung-sahur-horror': { img:'https://2games.io/data/image/game/tung-sahur-horror/tung-sahur-horror_sq.png' },
+            'ultrakill': { img:'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1229490/library_600x900_2x.jpg' },
+            'wrestle-bros': { img:'https://nealfun.app/game/baseball-bros/assets/wbro.png', isLogo:true }
+        };
+
+        const gameData = rawGameData.map(enrichGameData);
+
+        let currentCategory = 'games', filteredGames = [], currentIndex = 0, hoverFocusTimer = null;
+        const gameList = document.getElementById('game-list');
+        const bgOverlay = document.getElementById('bg-overlay');
+        const activeTitle = document.getElementById('active-title');
+        const activeDesc = document.getElementById('active-desc');
+        const gameInfo = document.getElementById('game-info');
+
+        function init() { renderTiles(); updateClock(); setInterval(updateClock, 1000); }
+
+        function switchCategory(cat) {
+            currentCategory = cat;
+            document.getElementById('btn-games').classList.toggle('active', cat === 'games');
+            document.getElementById('btn-media').classList.toggle('active', cat === 'media');
+            document.getElementById('btn-browsers').classList.toggle('active', cat === 'browsers');
+            filteredGames = gameData.filter(g => g.type === cat);
+            renderTiles();
+        }
+
+        function buildSiteIconUrl(url) {
+            try { return `https://www.google.com/s2/favicons?sz=256&domain_url=${encodeURIComponent(new URL(url).origin)}`; }
+            catch { return ''; }
+        }
+
+        function resolveGameAsset(baseUrl, assetUrl) {
+            if (!assetUrl) return '';
+            const normalized = assetUrl.replace(/^hhttps:\/\//i, 'https://').replace(/^http:\/\//i, 'https://');
+            try { return new URL(normalized, baseUrl).href; }
+            catch { return normalized; }
+        }
+
+        function normalizeLaunchUrl(url) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.hostname !== 'cdn.jsdelivr.net') return parsed.href;
+                const path = parsed.pathname;
+                const lastSegment = path.split('/').pop() || '';
+                if (path.endsWith('/')) {
+                    parsed.pathname += 'index.html';
+                    return parsed.href;
+                }
+                if (!lastSegment.includes('.')) {
+                    parsed.pathname += '/index.html';
+                    return parsed.href;
+                }
+                return parsed.href;
+            } catch {
+                return url;
+            }
+        }
+
+        function shouldInlineLaunch(url) {
+            try {
+                const parsed = new URL(url);
+                return parsed.hostname === 'cdn.jsdelivr.net';
+            } catch {
+                return false;
+            }
+        }
+
+        function injectBaseHref(html, baseHref) {
+            const baseTag = `<base href="${baseHref}">`;
+            if (/<base\s/i.test(html)) return html;
+            if (/<head[^>]*>/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
+            return `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`;
+        }
+
+        function renderLaunchError(doc, title, message, fallbackUrl) {
+            doc.open();
+            doc.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${title}</title><style>
+                body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050505;color:#fff;font-family:Inter,sans-serif}
+                .card{max-width:680px;padding:28px 32px;border:1px solid #2f2f2f;border-radius:18px;background:rgba(18,18,18,.96);box-shadow:0 24px 80px rgba(0,0,0,.45)}
+                h1{margin:0 0 12px;font-size:28px} p{margin:0 0 16px;color:#bbb;line-height:1.5}
+                a{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:999px;background:#fff;color:#000;text-decoration:none;font-weight:700}
+            </style></head><body><div class="card"><h1>${title}</h1><p>${message}</p><a href="${fallbackUrl}">Open Source URL</a></div></body></html>`);
+            doc.close();
+        }
+
+        async function launchInlinePage(win, title, url) {
+            const sourceUrl = normalizeLaunchUrl(url);
+            const response = await fetch(sourceUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = injectBaseHref(await response.text(), sourceUrl);
+            const doc = win.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+            try { doc.title = `${title} - Launcher`; } catch {}
+        }
+
+        function enrichGameData(game) {
+            if (game.type !== 'games' || game.icon) return game;
+            const fallbackImg = buildSiteIconUrl(game.url);
+            const override = gameIconOverrides[game.id];
+            if (override?.img) {
+                return {
+                    ...game,
+                    img: resolveGameAsset(game.url, override.img),
+                    fallbackImg,
+                    isLogo: Boolean(override.isLogo)
+                };
+            }
+            if (game.placeholder) return { ...game, img: fallbackImg, fallbackImg, isLogo: true };
+            return game;
+        }
+
+        function buildFallbackGameIcon() {
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-gamepad text-4xl text-gray-500';
+            return icon;
+        }
+
+        function handleImgError(img) {
+            const fallback = img.dataset.fallback || '';
+            if (!img.dataset.fallbackApplied && fallback && img.src !== fallback) {
+                img.dataset.fallbackApplied = '1';
+                img.src = fallback;
+                img.classList.add('game-logo');
+                return;
+            }
+            img.replaceWith(buildFallbackGameIcon());
+        }
+
+        function renderTiles() {
+            filteredGames = gameData.filter(g => g.type === currentCategory);
+            currentIndex = 0;
+            gameList.innerHTML = '';
+            filteredGames.forEach((game, index) => {
+                const tile = document.createElement('div');
+                tile.className = `game-tile ${index === 0 ? 'focused' : ''}`;
+                tile.dataset.index = index;
+                let innerContent = '';
+                if (game.img) {
+                    const imgClass = game.isLogo ? 'game-logo' : '';
+                    innerContent = `<img src="${game.img}" alt="${game.title}" class="${imgClass}" data-fallback="${game.fallbackImg || ''}" onerror="handleImgError(this)">`;
+                } else if (game.icon) {
+                    innerContent = game.icon;
+                } else if (game.placeholder) {
+                    innerContent = `<div class="placeholder">${game.placeholder}</div>`;
+                } else {
+                    innerContent = `<i class="fas fa-gamepad text-4xl text-gray-500"></i>`;
+                }
+                tile.innerHTML = `${innerContent}<div class="selection-glow"></div><div class="game-title-popup">${game.title}</div>`;
+                tile.addEventListener('mouseenter', () => scheduleSetFocus(index));
+                tile.addEventListener('mouseleave', clearScheduledFocus);
+                tile.addEventListener('click', () => launchCurrentGame());
+                gameList.appendChild(tile);
+            });
+            gameList.addEventListener('mouseleave', clearScheduledFocus);
+            updateDisplay();
+        }
+
+        function setFocus(index) {
+            if (index < 0) index = 0;
+            if (index >= filteredGames.length) index = filteredGames.length - 1;
+            if (index === currentIndex) return;
+            document.querySelectorAll('.game-tile').forEach(t => t.classList.remove('focused'));
+            currentIndex = index;
+            const t = document.querySelectorAll('.game-tile')[currentIndex];
+            if (t) t.classList.add('focused');
+            updateDisplay();
+        }
+
+        function scheduleSetFocus(index) {
+            if (index === currentIndex) return;
+            clearScheduledFocus();
+            hoverFocusTimer = setTimeout(() => { setFocus(index); hoverFocusTimer = null; }, 140);
+        }
+
+        function clearScheduledFocus() { if (hoverFocusTimer) { clearTimeout(hoverFocusTimer); hoverFocusTimer = null; } }
+
+        function updateDisplay() {
+            const game = filteredGames[currentIndex];
+            if (!game) return;
+            gameInfo.style.opacity = '0';
+            setTimeout(() => {
+                activeTitle.innerText = game.title;
+                activeDesc.innerText = game.desc;
+                document.getElementById('btn-action-text').innerText = game.url ? 'Open' : 'Start';
+                gameInfo.style.opacity = '1';
+            }, 150);
+            bgOverlay.style.backgroundImage = `url(${game.bg})`;
+            bgOverlay.classList.remove('bg-zoom');
+            void bgOverlay.offsetWidth;
+            bgOverlay.classList.add('bg-zoom');
+            const tileWidth = 160;
+            const offset = 60 - (currentIndex * tileWidth);
+            gameList.style.transform = `translateX(${offset}px)`;
+        }
+
+        function filterGames() {
+            const search = document.querySelector('#search-modal input').value.toLowerCase();
+            filteredGames = gameData.filter(g => g.type === currentCategory && g.title.toLowerCase().includes(search));
+            renderTiles();
+        }
+
+        function toggleModal(id) {
+            document.getElementById(id).classList.toggle('active');
+            if (id === 'search-modal') {
+                document.querySelector('#search-modal input').value = '';
+                filterGames();
+            }
+        }
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
+
+        async function launchCurrentGame() {
+            const game = filteredGames[currentIndex];
+            const launchScreen = document.getElementById('launch-screen');
+            const launchTitle = document.getElementById('launch-title');
+            launchTitle.innerText = game.url ? `Opening ${game.title}...` : `Launching ${game.title}...`;
+            launchScreen.classList.add('active');
+            if (game.url) {
+                const launchUrl = normalizeLaunchUrl(game.url);
+                const win = window.open('about:blank', '_blank');
+                if (win) {
+                    if (shouldInlineLaunch(launchUrl)) {
+                        try {
+                            await launchInlinePage(win, game.title, launchUrl);
+                        } catch (error) {
+                            renderLaunchError(
+                                win.document,
+                                `${game.title} couldn't be embedded`,
+                                `This launcher couldn't boot the page inline. ${error.message}.`,
+                                launchUrl
+                            );
+                        }
+                    } else {
+                        const doc = win.document;
+                        doc.title = `${game.title} - Launcher`;
+                        const frame = doc.createElement('iframe');
+                        frame.src = launchUrl;
+                        frame.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;margin:0;padding:0;overflow:hidden;';
+                        frame.setAttribute('allow', 'autoplay; fullscreen; keyboard; gamepad');
+                        doc.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#000;';
+                        doc.body.appendChild(frame);
+                    }
+                } else { window.location.href = launchUrl; }
+            }
+            setTimeout(() => launchScreen.classList.remove('active'), 1800);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            let h = now.getHours(), m = now.getMinutes();
+            const ap = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            document.getElementById('clock').innerText = `${h}:${m < 10 ? '0'+m : m} ${ap}`;
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight') setFocus(currentIndex + 1);
+            else if (e.key === 'ArrowLeft') setFocus(currentIndex - 1);
+            else if (e.key === 'Enter') launchCurrentGame();
+            else if (e.key === 'Escape') closeModals();
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
