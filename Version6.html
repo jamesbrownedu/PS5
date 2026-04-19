@@ -12,15 +12,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Inter:wght@300;400;500;600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; }
 
         :root {
             --bg-base:        #000000;
             --bg-glass:       rgba(18, 18, 18, 0.65);
-            --bg-glass-hi:    rgba(25, 25, 25, 0.75);
-            --blur:           blur(32px) saturate(1.8);
             --bg-glass-hi:    rgba(22, 22, 22, 0.90);
             --bg-tile:        rgba(255, 255, 255, 0.05);
             --bg-tile-hover:  rgba(255, 255, 255, 0.09);
@@ -34,7 +32,7 @@
             --radius-md:      14px;
             --radius-lg:      20px;
             --blur:           blur(24px) saturate(1.4);
-            --accent-neon:    #3b82f6; 
+            --accent-neon:    #3b82f6;
             --accent-glow:    rgba(59, 130, 246, 0.50);
         }
 
@@ -63,9 +61,31 @@
             background: var(--bg-base);
             color: var(--text-primary);
             overflow: hidden;
-            height: 100vh;
-            user-select: none;
+            min-height: 100dvh;
+            height: 100dvh;
+            user-select: text;
             -webkit-font-smoothing: antialiased;
+        }
+
+        h1,
+        h2,
+        #active-title,
+        .modal-content h2 {
+            font-family: 'Baloo 2', 'Inter', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .game-tile,
+        .scroll-container,
+        .media-btn,
+        .btn-primary,
+        .btn-secondary,
+        .btn-favorite,
+        .btn-admin,
+        .modal-close,
+        .upload-button {
+            user-select: none;
         }
 
         #bg-overlay {
@@ -142,13 +162,6 @@
         @keyframes lineGlow {
             0%, 100% { opacity: 0.8; transform: scaleX(1); }
             50% { opacity: 1; transform: scaleX(1.05); }
-        }
-            left: 50%;
-            transform: translateX(-50%);
-            width: 16px;
-            height: 2px;
-            background: var(--text-primary);
-            border-radius: 2px;
         }
 
         .media-btn:hover:not(.active) {
@@ -283,6 +296,15 @@
             max-width: 660px;
         }
 
+        .modal-content--wide {
+            max-width: 920px;
+        }
+
+        .modal-content--auth {
+            max-width: 920px;
+            text-align: left;
+        }
+
         .modal-overlay.active .modal-content {
             transform: scale(1) translateY(0);
         }
@@ -314,6 +336,84 @@
 
         .modal-input::placeholder {
             color: var(--text-tertiary);
+        }
+
+        .auth-modal-layout {
+            display: grid;
+            grid-template-columns: minmax(220px, 0.95fr) minmax(320px, 1.2fr);
+            gap: 28px;
+            align-items: start;
+        }
+
+        .auth-modal-copy {
+            padding-right: 8px;
+        }
+
+        .auth-modal-copy p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .auth-modal-panel {
+            padding: 24px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .auth-modal-fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            align-items: start;
+        }
+
+        .auth-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 18px;
+        }
+
+        .auth-helper-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        .auth-helper-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .forward-list-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            max-height: 56vh;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .forward-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .forward-card:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.16);
         }
 
         .settings-row {
@@ -408,6 +508,12 @@
         .btn-secondary:hover {
             background: rgba(255,255,255,0.10);
             color: var(--text-primary);
+        }
+
+        .btn-secondary.active {
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.32);
+            background: rgba(239, 68, 68, 0.12);
         }
 
         .launch-screen {
@@ -556,6 +662,61 @@
             background: rgba(239, 68, 68, 0.1);
         }
 
+        .btn-admin {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            margin-right: 16px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .btn-admin:hover {
+            background: rgba(239, 68, 68, 0.32);
+            color: #fecaca;
+            border-color: rgba(252, 165, 165, 0.55);
+        }
+
+        .media-btn {
+            display: inline-flex;
+            align-items: center;
+            overflow: hidden;
+            white-space: nowrap;
+            max-width: 140px;
+        }
+
+        .media-btn.collapsed {
+            max-width: 0;
+            opacity: 0;
+            margin-right: -8px;
+            pointer-events: none;
+        }
+
+        .media-btn.revealed {
+            opacity: 1;
+            max-width: 140px;
+            margin-right: 0;
+        }
+
+        .game-actions-copy {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .game-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
 
 
         @keyframes bootFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -638,6 +799,22 @@
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
+        @media (max-width: 900px) {
+            .auth-modal-layout,
+            .auth-modal-fields,
+            .forward-list-grid,
+            .game-actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 24px;
+                width: calc(100% - 24px);
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -663,27 +840,46 @@
 
     <!-- Forward Modal -->
     <div id="forward-modal" class="modal-overlay" onclick="closeModals()">
-        <div class="modal-content max-w-sm" onclick="event.stopPropagation()">
+        <div class="modal-content modal-content--wide" onclick="event.stopPropagation()">
             <h2 class="text-xl font-bold mb-4">Forward Message</h2>
-            <div id="forward-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+            <div id="forward-list" class="forward-list-grid"></div>
             <button onclick="closeModals()" class="w-full mt-4 bg-white/10 hover:bg-white/20 py-2 rounded font-bold transition">Cancel</button>
         </div>
     </div>
 
     <!-- Auth Modal -->
     <div id="auth-modal" class="modal-overlay">
-        <div class="modal-content max-w-sm text-center">
-            <h2 class="text-2xl font-bold mb-4">Login / Register</h2>
-            <p class="text-gray-400 text-sm mb-6">Enter a username and password. If it doesn't exist, we'll create an account for you!</p>
-            <div id="auth-error" class="text-red-400 text-sm mb-2 hidden bg-red-900/40 p-2 rounded"></div>
-            <input type="text" id="auth-username" placeholder="Username" class="modal-input w-full mb-3" onkeypress="if(event.key==='Enter') handleAuth()">
-            <div class="relative w-full mb-4">
-                <input type="password" id="auth-password" placeholder="Password" class="modal-input w-full" onkeypress="if(event.key==='Enter') handleAuth()">
-                <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition">
-                    <i id="password-toggle-icon" class="fas fa-eye"></i>
-                </button>
+        <div class="modal-content modal-content--auth" onclick="event.stopPropagation()">
+            <div class="auth-modal-layout">
+                <div class="auth-modal-copy">
+                    <h2 class="text-2xl font-bold mb-4">Login / Register</h2>
+                    <p class="text-sm mb-6">Use a username and password. If the account does not exist yet, the launcher will create it automatically.</p>
+                    <div class="auth-helper-list">
+                        <div class="auth-helper-item"><i class="fas fa-user-astronaut text-blue-400 mt-0.5"></i><span>One account covers profile, favorites, chat, and admin tools.</span></div>
+                        <div class="auth-helper-item"><i class="fas fa-lock text-emerald-400 mt-0.5"></i><span>Fast flow: username, password, Enter.</span></div>
+                        <div class="auth-helper-item"><i class="fas fa-bolt text-amber-400 mt-0.5"></i><span>New users are provisioned automatically on first successful register path.</span></div>
+                    </div>
+                </div>
+                <div class="auth-modal-panel glass-panel">
+                    <div id="auth-error" class="text-red-300 text-sm mb-4 hidden bg-red-900/40 p-3 rounded"></div>
+                    <div class="auth-modal-fields">
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Username</label>
+                            <input type="text" id="auth-username" placeholder="Username" class="modal-input w-full" onkeypress="if(event.key==='Enter') handleAuth()">
+                        </div>
+                        <div class="relative">
+                            <label class="block text-sm font-semibold mb-2">Password</label>
+                            <input type="password" id="auth-password" placeholder="Password" class="modal-input w-full" onkeypress="if(event.key==='Enter') handleAuth()">
+                            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-[42px] text-gray-500 hover:text-white transition">
+                                <i id="password-toggle-icon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="auth-modal-actions">
+                        <button class="btn-primary py-3 px-8" onclick="handleAuth()">Continue</button>
+                    </div>
+                </div>
             </div>
-            <button class="btn-primary w-full py-3" onclick="handleAuth()">Continue</button>
         </div>
     </div>
 
@@ -727,7 +923,7 @@
     
     
     <!-- Toasts Container -->
-    <div id="toast-container" class="fixed bottom-6 left-6 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
 
     <div id="bg-overlay"></div>
 
@@ -737,7 +933,7 @@
             <h2 class="text-2xl font-bold mb-4">Search</h2>
             <div class="relative mb-4">
                 <i class="fas fa-search absolute left-4 top-4"></i>
-                <input type="text" id="search-input" placeholder="Search games by name, type, or category..." class="modal-input w-full" oninput="filterGames()">
+                <input type="text" id="search-input" placeholder="Search games by name, type, or category..." class="modal-input w-full" oninput="debounceSearch()">
             </div>
             <div class="text-sm mb-4" id="search-results-count">Type to search...</div>
             <div id="search-results" class="grid grid-cols-3 gap-4 max-h-80 overflow-y-auto">
@@ -785,7 +981,7 @@
             <div class="space-y-6">
                 <div class="flex items-center gap-6">
                     <div class="relative profile-avatar">
-                        <img id="profile-pic-preview" src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile">
+                        <img id="profile-pic-preview" src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" onerror="handleAvatarFallback(this)">
                         <input type="file" id="profile-pic-input" accept="image/*" class="hidden">
                         <label for="profile-pic-input" class="upload-button">
                             <i class="fas fa-camera text-white text-sm"></i>
@@ -858,7 +1054,7 @@
             <div id="btn-games" class="media-btn active" onclick="switchCategory('games')">Games</div>
             <div id="btn-media" class="media-btn" onclick="switchCategory('media')">Media</div>
             <div id="btn-browsers" class="media-btn" onclick="switchCategory('browsers')">Browsers</div>
-            <div id="btn-favorites" class="media-btn" style="display: none;" onclick="switchCategory('favorites')">Favorites</div>
+            <div id="btn-favorites" class="media-btn collapsed" onclick="switchCategory('favorites')">Favorites</div>
         </nav>
         <div class="flex items-center space-x-8 text-xl">
             <i class="fas fa-search" onclick="toggleModal('search-modal')"></i>
@@ -868,15 +1064,15 @@
                 <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center opacity-0 scale-0 transition-transform duration-300">0</span>
             </i>
             <i class="fas fa-cog" onclick="toggleModal('settings-modal')"></i>
-            <button id="btn-admin" class="mr-4 text-sm" onclick="toggleModal('admin-modal')" style="display:none; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); padding: 6px 12px; border-radius: 999px; color: #fca5a5; font-weight: 600;"><i class="fas fa-shield-alt mr-1"></i>Admin</button>
+            <button id="btn-admin" class="btn-admin" onclick="toggleModal('admin-modal')"><i class="fas fa-shield-alt"></i><span>Admin</span></button>
             <div class="flex items-center space-x-2 cursor-pointer" onclick="toggleModal('profile-modal')">
                 <div class="profile-avatar">
-                    <img id="header-profile-pic" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest" alt="User">
+                    <img id="header-profile-pic" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest" alt="User" onerror="handleAvatarFallback(this)">
                 </div>
                 <div class="online-dot"></div>
             </div>
             <div id="username-display" class="font-medium text-sm ml-2">Guest</div>
-            <div id="clock" class="font-medium text-lg ml-4">4:42 PM</div>
+            <div id="clock" class="font-medium text-lg ml-4">4:42:00 PM</div>
         </div>
     </header>
 
@@ -895,12 +1091,27 @@
                 <button onclick="toggleFavorite()" class="btn-favorite" id="btn-favorite" title="Toggle Favorite">
                     <i class="fas fa-heart"></i>
                 </button>
-                <button onclick="toggleModal('settings-modal')" class="btn-secondary" style="padding:11px 18px;">
+                <button onclick="openGameActions()" class="btn-secondary" style="padding:11px 18px;">
                     <i class="fas fa-ellipsis-h"></i>
                 </button>
             </div>
         </div>
     </main>
+
+    <div id="game-actions-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
+            <h2 id="game-actions-title" class="text-2xl font-bold mb-3">Game Options</h2>
+            <p id="game-actions-desc" class="game-actions-copy">Quick actions for the selected game.</p>
+            <div class="game-actions-grid">
+                <button onclick="launchCurrentGame(); closeModals();" class="btn-primary"><i class="fas fa-play"></i><span>Launch</span></button>
+                <button onclick="openCurrentGameDirect()" class="btn-secondary"><i class="fas fa-arrow-up-right-from-square"></i><span>Open Direct</span></button>
+                <button id="game-actions-favorite" onclick="toggleFavorite(); syncGameActionsState();" class="btn-secondary"><i class="fas fa-heart"></i><span>Favorite</span></button>
+                <button onclick="copyCurrentGameLink()" class="btn-secondary"><i class="fas fa-link"></i><span>Copy Link</span></button>
+                <button onclick="closeModals(); toggleModal('settings-modal');" class="btn-secondary"><i class="fas fa-sliders"></i><span>Launcher Settings</span></button>
+            </div>
+        </div>
+    </div>
 
     <script>
 
@@ -913,6 +1124,37 @@
             appId: "1:488163230363:web:97b72324e07f428447fc3e",
             measurementId: "G-Z917M9T98P"
         };
+
+        const LauncherConfig = Object.freeze({
+            searchDebounceMs: 200,
+            searchResultsLimit: 12,
+            searchPromptText: 'Type to search...',
+            pinnedGameOrder: ['store', 'explore', 'psplus'],
+            avatarFallbackLabel: 'Player',
+            wheelCooldownMin: 40,
+            wheelCooldownBase: 260,
+            wheelSensitivityStep: 22,
+            clockOptions: { hour: 'numeric', minute: '2-digit', second: '2-digit' }
+        });
+
+        const LauncherState = {
+            searchDebounceTimer: null,
+            activeConversationId: null,
+            lastConversationMessageKey: new Map()
+        };
+
+        function buildAvatarFallbackDataUri(label = LauncherConfig.avatarFallbackLabel) {
+            const safeLabel = String(label || LauncherConfig.avatarFallbackLabel).trim() || LauncherConfig.avatarFallbackLabel;
+            const initials = safeLabel.split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('') || 'P';
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1f2937"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs><rect width="96" height="96" rx="48" fill="url(#g)"/><circle cx="48" cy="36" r="18" fill="#f8fafc" fill-opacity="0.96"/><path d="M20 78c5-15 16-23 28-23s23 8 28 23" fill="#f8fafc" fill-opacity="0.96"/><text x="48" y="88" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#93c5fd">${initials}</text></svg>`;
+            return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+        }
+
+        function handleAvatarFallback(img, label) {
+            if (!img) return;
+            img.onerror = null;
+            img.src = buildAvatarFallbackDataUri(label || img.alt || img.dataset.seed || LauncherConfig.avatarFallbackLabel);
+        }
         
         let auth = null, db = null;
         let currentUser = null;
@@ -987,7 +1229,7 @@
                                 if(userRole === 'mod') badge.className = 'text-[9px] bg-blue-600 text-white font-black px-1.5 py-0.5 rounded tracking-widest ml-2';
                             }
                             if (userRole === 'owner' || userRole === 'mod') {
-                                document.getElementById('btn-admin').style.display = 'inline-block';
+                                document.getElementById('btn-admin').style.display = 'inline-flex';
                             }
                         }
                     });
@@ -1019,17 +1261,38 @@
             }
         }
 
+        function setAuthError(message = '') {
+            const errDiv = document.getElementById('auth-error');
+            if (!errDiv) return;
+            errDiv.textContent = message;
+            errDiv.classList.toggle('hidden', !message);
+            errDiv.style.display = message ? 'block' : 'none';
+        }
+
+        function formatAuthError(code, fallback = 'Authentication failed. Try again.') {
+            const friendlyMessages = {
+                'auth/wrong-password': 'Incorrect password for this username.',
+                'auth/user-not-found': 'That username does not exist yet. Continue again to create it.',
+                'auth/invalid-credential': 'Those credentials did not match. Check the password and try again.',
+                'auth/too-many-requests': 'Too many attempts right now. Wait a minute and try again.',
+                'auth/network-request-failed': 'Network error. The auth service may be blocked or offline.',
+                'auth/weak-password': 'Use a stronger password before creating this account.',
+                'auth/email-already-in-use': 'That username already exists. Use the correct password instead.',
+                'auth/invalid-email': 'That username could not be turned into a valid account identifier.'
+            };
+            return friendlyMessages[code] || fallback;
+        }
+
         async function handleAuth() {
             const uInput = document.getElementById('auth-username').value.trim();
             const pInput = document.getElementById('auth-password').value;
-            const errDiv = document.getElementById('auth-error');
-            if(!auth) { errDiv.textContent = "Offline/Servers Blocked"; errDiv.style.display = 'block'; return; }
-            if(!uInput || !pInput) { errDiv.textContent = "Fill all fields."; errDiv.style.display = 'block'; return; }
+            if(!auth) { setAuthError('Offline or auth servers are blocked.'); return; }
+            if(!uInput || !pInput) { setAuthError('Enter both username and password.'); return; }
             const email = uInput.toLowerCase() + '@gameui1z.local';
             
             try {
                 await auth.signInWithEmailAndPassword(email, pInput);
-                errDiv.style.display = 'none';
+                setAuthError('');
             } catch(e) {
                 // If the error suggests the user might not exist, try to register
                 if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
@@ -1059,15 +1322,13 @@
                     } catch(regE) {
                         // If registration fails because email exists, it means the INITIAL login was just a wrong password
                         if (regE.code === 'auth/email-already-in-use') {
-                            errDiv.textContent = "Incorrect password for this username.";
+                            setAuthError('Incorrect password for this username.');
                         } else {
-                            errDiv.textContent = regE.message;
+                            setAuthError(formatAuthError(regE.code, 'Could not create that account right now.'));
                         }
-                        errDiv.style.display = 'block';
                     }
                 } else {
-                    errDiv.textContent = e.message;
-                    errDiv.style.display = 'block';
+                    setAuthError(formatAuthError(e.code));
                 }
             }
         }
@@ -1116,19 +1377,48 @@
             db.collection('conversations').where('memberIds', 'array-contains', currentUser.uid)
                 .onSnapshot(snap => {
                     snap.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        const messageKey = getConversationMessageKey(data);
+                        const previousMessageKey = LauncherState.lastConversationMessageKey.get(change.doc.id);
+
+                        if (messageKey) {
+                            LauncherState.lastConversationMessageKey.set(change.doc.id, messageKey);
+                        }
+
                         if (change.type === 'modified') {
-                            const data = change.doc.data();
-                            if (data.lastMessageSenderId && data.lastMessageSenderId !== currentUser.uid) {
-                                showToast(`New message in ${data.name || 'Chat'}: ${data.lastMessagePreview}`);
+                            const isNewMessage = Boolean(messageKey) && messageKey !== previousMessageKey;
+                            if (
+                                isNewMessage &&
+                                data.lastMessageSenderId &&
+                                data.lastMessageSenderId !== currentUser.uid &&
+                                !isSocialPanelOpen()
+                            ) {
+                                showToast(`New message in ${getConversationDisplayName(data)}: ${data.lastMessagePreview}`);
                             }
                         }
                     });
                 });
         }
 
+        function isSocialPanelOpen() {
+            const overlay = document.getElementById('social-overlay');
+            return Boolean(overlay && !overlay.classList.contains('translate-x-full'));
+        }
+
+        function getConversationMessageKey(data) {
+            if (!data?.lastMessageAt) return '';
+            if (typeof data.lastMessageAt.toMillis === 'function') return String(data.lastMessageAt.toMillis());
+            const seconds = data.lastMessageAt.seconds ?? '';
+            const nanoseconds = data.lastMessageAt.nanoseconds ?? '';
+            return `${seconds}:${nanoseconds}`;
+        }
+
         function toggleSocial() { 
             const overlay = document.getElementById('social-overlay');
             overlay.classList.toggle('translate-x-full');
+            if (overlay.classList.contains('translate-x-full')) {
+                LauncherState.activeConversationId = null;
+            }
             if(!overlay.classList.contains('translate-x-full') && currentUser && db) {
                 loadFriendsList();
             }
@@ -1136,6 +1426,7 @@
 
         async function loadFriendsList() {
             if (!currentUser || !db) return;
+            LauncherState.activeConversationId = null;
             const content = document.getElementById('social-content');
             content.innerHTML = `
                 <div class="mb-4">
@@ -1158,8 +1449,10 @@
                     chatsList.innerHTML = '';
                     snap.forEach(doc => {
                         const data = doc.data();
-                        let displayAvatar = data.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=Chat';
-                        let displayName = data.name || 'Group Chat';
+                        let displayAvatar = data.isDirectMessage
+                            ? (data.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=Chat')
+                            : getConversationAvatar(data);
+                        let displayName = data.isDirectMessage ? 'Direct Message' : getConversationDisplayName(data);
                         
                         let otherId = null;
                         // Dynamically determine the other person's name/avatar for DMs
@@ -1187,8 +1480,8 @@
                                 ${data.isDirectMessage ? `<div id="status-dot-${doc.id}" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-black bg-gray-500 user-status-${otherId}"></div>` : ''}
                             </div>
                             <div class="flex-1 overflow-hidden">
-                                <div class="font-bold text-sm truncate text-white user-name-${data.isDirectMessage ? otherId : ''}">${displayName}</div>
-                                <div class="text-xs text-gray-400 text-ellipsis whitespace-nowrap overflow-hidden">${data.lastMessagePreview || 'New chat...'}</div>
+                                <div class="font-bold text-sm truncate text-white user-name-${data.isDirectMessage ? otherId : ''}">${escapeHtml(displayName)}</div>
+                                <div class="text-xs text-gray-400 text-ellipsis whitespace-nowrap overflow-hidden">${escapeHtml(data.lastMessagePreview || 'New chat...')}</div>
                             </div>
                         `;
 
@@ -1258,6 +1551,64 @@
             container.innerHTML = html;
         }
 
+        async function getFriendProfiles() {
+            if (!db || !currentUser) return [];
+
+            const friendMap = new Map();
+            const fallbackAvatarFor = label => buildAvatarFallbackDataUri(label || 'Friend');
+
+            const [convoResult, friendsResult] = await Promise.allSettled([
+                db.collection('conversations')
+                    .where('memberIds', 'array-contains', currentUser.uid)
+                    .get(),
+                db.collection('users').doc(currentUser.uid).collection('friends').get()
+            ]);
+
+            if (convoResult.status === 'fulfilled') {
+                convoResult.value.forEach(doc => {
+                    const data = doc.data() || {};
+                    if (!data.isDirectMessage) return;
+                    const otherId = Array.isArray(data.memberIds) ? data.memberIds.find(id => id !== currentUser.uid) : null;
+                    if (!otherId) return;
+
+                    friendMap.set(otherId, {
+                        id: otherId,
+                        username: data.names?.[otherId] || globalUserCache[otherId]?.name || 'Unknown User',
+                        avatarUrl: data.avatars?.[otherId] || globalUserCache[otherId]?.avatar || fallbackAvatarFor(data.names?.[otherId])
+                    });
+                });
+            }
+
+            if (friendsResult.status === 'fulfilled') {
+                friendsResult.value.forEach(doc => {
+                    const data = doc.data() || {};
+                    const cached = friendMap.get(doc.id) || {};
+                    friendMap.set(doc.id, {
+                        id: doc.id,
+                        username: data.username || data.displayName || cached.username || globalUserCache[doc.id]?.name || 'Unknown User',
+                        avatarUrl: data.avatarUrl || cached.avatarUrl || globalUserCache[doc.id]?.avatar || fallbackAvatarFor(data.username || cached.username)
+                    });
+                });
+            }
+
+            await Promise.allSettled(Array.from(friendMap.keys()).map(async friendId => {
+                const userDoc = await db.collection('users').doc(friendId).get();
+                if (!userDoc.exists) return;
+
+                const userData = userDoc.data() || {};
+                const current = friendMap.get(friendId) || {};
+                friendMap.set(friendId, {
+                    id: friendId,
+                    username: userData.username || userData.displayName || current.username || 'Unknown User',
+                    avatarUrl: userData.avatarUrl || current.avatarUrl || fallbackAvatarFor(userData.username || current.username)
+                });
+            }));
+
+            return Array.from(friendMap.values()).sort((a, b) =>
+                (a.username || '').localeCompare(b.username || '', undefined, { sensitivity: 'base' })
+            );
+        }
+
         async function executeUserSearch() {
             const input = document.getElementById('social-search');
             const query = input.value.trim();
@@ -1266,9 +1617,8 @@
             
             resContainer.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400 text-sm"></i>';
             try {
-                // Get current friends to filter them out
-                const friendsSnap = await db.collection('users').doc(currentUser.uid).collection('friends').get();
-                const friendIds = friendsSnap.docs.map(d => d.id);
+                const friendProfiles = await getFriendProfiles();
+                const friendIds = friendProfiles.map(friend => friend.id);
 
                 const q = query.toLowerCase();
                 const snap = await db.collection('users').where('usernameLower', '==', q).limit(5).get();
@@ -1321,16 +1671,30 @@
                 await db.collection('friendRequests').doc(requestId).update({ status });
                 if(status === 'accepted') {
                     const myProfile = loadProfile();
+                    const myAvatar = myProfile.profilePic || buildAvatarFallbackDataUri(myProfile.username);
+                    const friendAvatar = senderAvatar || buildAvatarFallbackDataUri(senderName);
                     
                     const convo = {
                         memberIds: [currentUser.uid, senderId],
                         names: { [currentUser.uid]: myProfile.username, [senderId]: senderName },
-                        avatars: { [currentUser.uid]: myProfile.profilePic, [senderId]: senderAvatar },
+                        avatars: { [currentUser.uid]: myAvatar, [senderId]: friendAvatar },
                         isDirectMessage: true,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
                     await db.collection('conversations').add(convo);
+                    await Promise.allSettled([
+                        db.collection('users').doc(currentUser.uid).collection('friends').doc(senderId).set({
+                            username: senderName,
+                            avatarUrl: friendAvatar,
+                            addedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true }),
+                        db.collection('users').doc(senderId).collection('friends').doc(currentUser.uid).set({
+                            username: myProfile.username,
+                            avatarUrl: myAvatar,
+                            addedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true })
+                    ]);
                     showToast(`You are now friends with ${senderName}!`);
                 }
                 pendingRequests = pendingRequests.filter(r => r.id !== requestId);
@@ -1344,8 +1708,109 @@
             // Deprecated by inline search
         }
 
+        function getCurrentIdentity() {
+            const profile = loadProfile();
+            const username = profile.username || currentUser?.displayName || 'Guest';
+            const avatarUrl = profile.profilePic || currentUser?.photoURL || buildAvatarFallbackDataUri(username);
+            return { id: currentUser?.uid || '', username, avatarUrl };
+        }
 
-        function promptCreateGroup() {
+        function getGroupOwnerId(convoData) {
+            if (!convoData || convoData.isDirectMessage) return '';
+            if (convoData.ownerId) return convoData.ownerId;
+            if (convoData.createdBy) return convoData.createdBy;
+            const mappedNameKeys = convoData.names ? Object.keys(convoData.names) : [];
+            if (mappedNameKeys.length === 1) return mappedNameKeys[0];
+            return Array.isArray(convoData.memberIds) ? (convoData.memberIds[0] || '') : '';
+        }
+
+        function getDirectConversationName(data) {
+            if (!data) return 'Chat';
+            const otherId = Array.isArray(data.memberIds) ? data.memberIds.find(id => id !== currentUser?.uid) : '';
+            return data.names?.[otherId] || globalUserCache[otherId]?.name || data.name || 'Chat';
+        }
+
+        function getConversationDisplayName(data) {
+            if (!data) return 'Chat';
+            return data.isDirectMessage ? getDirectConversationName(data) : (data.groupName || data.name || 'Group Chat');
+        }
+
+        function getConversationAvatar(data) {
+            if (!data) return buildAvatarFallbackDataUri('Chat');
+            if (data.isDirectMessage) {
+                const otherId = Array.isArray(data.memberIds) ? data.memberIds.find(id => id !== currentUser?.uid) : '';
+                return data.avatars?.[otherId] || globalUserCache[otherId]?.avatar || data.avatarUrl || buildAvatarFallbackDataUri(getDirectConversationName(data));
+            }
+            return data.groupAvatar || data.avatarUrl || buildAvatarFallbackDataUri(getConversationDisplayName(data));
+        }
+
+        function escapeHtml(value = '') {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildMemberRemovalPatch(memberId) {
+            return {
+                memberIds: firebase.firestore.FieldValue.arrayRemove(memberId),
+                [`names.${memberId}`]: firebase.firestore.FieldValue.delete(),
+                [`avatars.${memberId}`]: firebase.firestore.FieldValue.delete(),
+                [`typing.${memberId}`]: firebase.firestore.FieldValue.delete(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+        }
+
+        async function compressImageToDataUrl(file, max = 256, quality = 0.72) {
+            if (!file) throw new Error('No file selected');
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+
+                img.onload = () => {
+                    const ratio = Math.min(max / img.width, max / img.height, 1);
+                    canvas.width = Math.max(1, Math.round(img.width * ratio));
+                    canvas.height = Math.max(1, Math.round(img.height * ratio));
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('Image load failed'));
+                };
+                img.src = url;
+            });
+        }
+
+        async function handleGroupAvatarChange(inputId, previewId) {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            const file = input?.files?.[0];
+            if (!file || !preview) return;
+
+            try {
+                preview.src = await compressImageToDataUrl(file, 256, 0.72);
+                preview.dataset.custom = '1';
+            } catch {
+                showToast('Could not process group image.');
+            }
+        }
+
+        function resetGroupAvatarPreview(previewId, nameInputId) {
+            const preview = document.getElementById(previewId);
+            const nameInput = document.getElementById(nameInputId);
+            if (!preview) return;
+            const fallbackName = nameInput?.value?.trim() || 'Group';
+            preview.src = buildAvatarFallbackDataUri(fallbackName);
+            preview.dataset.custom = '0';
+        }
+
+        async function promptCreateGroup() {
             const content = document.getElementById('social-content');
             content.innerHTML = `
                 <div class="flex items-center gap-2 mb-4">
@@ -1353,64 +1818,378 @@
                     <div class="font-bold">Create Group Chat</div>
                 </div>
                 <div class="mb-4">
-                    <input type="text" id="group-name" placeholder="Group Name" class="modal-input w-full mb-3">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="relative w-20 h-20 flex-shrink-0">
+                            <img id="group-avatar-preview" src="${buildAvatarFallbackDataUri('Group')}" class="w-20 h-20 rounded-2xl border border-white/10 object-cover bg-black" onerror="handleAvatarFallback(this, 'Group')">
+                            <input type="file" id="group-avatar-input" accept="image/*" class="hidden" onchange="handleGroupAvatarChange('group-avatar-input', 'group-avatar-preview')">
+                            <label for="group-avatar-input" class="upload-button"><i class="fas fa-camera text-white text-sm"></i></label>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-[0.18em]">Group Name</label>
+                            <input type="text" id="group-name" placeholder="Group Name" class="modal-input w-full">
+                            <button class="btn-secondary mt-3 w-full" type="button" onclick="resetGroupAvatarPreview('group-avatar-preview', 'group-name')">Reset Photo</button>
+                        </div>
+                    </div>
                     <div class="text-xs font-bold text-gray-400 mb-2">Select Members:</div>
-                    <div id="group-member-list" class="space-y-1 max-h-48 overflow-y-auto mb-4"></div>
+                    <div id="group-member-list" class="space-y-1 max-h-48 overflow-y-auto mb-4">
+                        <div class="text-xs text-gray-400 py-3 text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Loading friends...</div>
+                    </div>
                     <button class="btn-primary w-full" onclick="executeCreateGroup()">Create Group</button>
                 </div>
             `;
 
-            db.collection('users').doc(currentUser.uid).collection('friends').get().then(async friendsSnap => {
-                const list = document.getElementById('group-member-list');
-                for (const fDoc of friendsSnap.docs) {
-                    const uDoc = await db.collection('users').doc(fDoc.id).get();
-                    if (uDoc.exists) {
-                        const u = uDoc.data();
-                        list.innerHTML += `
-                            <label class="flex items-center justify-between bg-white/5 p-2 rounded cursor-pointer hover:bg-white/10">
-                                <div class="flex items-center gap-3">
-                                    <img src="${u.avatarUrl}" class="w-6 h-6 rounded-full">
-                                    <span class="text-sm">${u.username}</span>
-                                </div>
-                                <input type="checkbox" name="group-members" value="${uDoc.id}" class="rounded bg-black border-white/20">
-                            </label>
-                        `;
-                    }
+            const list = document.getElementById('group-member-list');
+            if (!list) return;
+
+            try {
+                const friends = await getFriendProfiles();
+                if (!friends.length) {
+                    list.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">No friends found yet. Add or accept a friend first.</div>';
+                    return;
                 }
-            });
+
+                list.innerHTML = friends.map(friend => `
+                    <label class="flex items-center justify-between bg-white/5 p-2 rounded cursor-pointer hover:bg-white/10">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <img src="${friend.avatarUrl}" onerror="handleAvatarFallback(this)" class="w-6 h-6 rounded-full bg-black flex-shrink-0">
+                            <span class="text-sm truncate">${escapeHtml(friend.username)}</span>
+                        </div>
+                        <input type="checkbox" name="group-members" value="${friend.id}" class="rounded bg-black border-white/20">
+                    </label>
+                `).join('');
+            } catch (error) {
+                console.error('Group friend list load failed', error);
+                list.innerHTML = '<div class="text-xs text-red-400 py-3 text-center">Could not load your friends list.</div>';
+            }
         }
 
         async function executeCreateGroup() {
             const name = document.getElementById('group-name').value.trim();
             const checkboxes = document.querySelectorAll('input[name="group-members"]:checked');
-            const memberIds = Array.from(checkboxes).map(c => c.value);
-            memberIds.push(currentUser.uid);
+            const selectedMemberIds = Array.from(new Set(Array.from(checkboxes).map(c => c.value)));
+            const memberIds = [currentUser.uid, ...selectedMemberIds.filter(id => id !== currentUser.uid)];
             
             if (!name || memberIds.length < 2) { showToast('Enter a name and pick at least one friend!'); return; }
 
-            const convo = {
-                name: name,
-                memberIds: memberIds,
-                isDirectMessage: false,
-                lastMessagePreview: 'Group created!',
-                lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                names: { [currentUser.uid]: currentUser.displayName },
-                avatars: { [currentUser.uid]: currentUser.photoURL }
-            };
+            try {
+                const currentIdentity = getCurrentIdentity();
+                const friendProfiles = await getFriendProfiles();
+                const friendMap = new Map(friendProfiles.map(friend => [friend.id, friend]));
+                const groupAvatar = document.getElementById('group-avatar-preview')?.src || buildAvatarFallbackDataUri(name);
+                const names = { [currentUser.uid]: currentIdentity.username };
+                const avatars = { [currentUser.uid]: currentIdentity.avatarUrl };
 
-            await db.collection('conversations').add(convo);
-            showToast('Group Created!');
-            loadFriendsList();
+                selectedMemberIds.forEach(memberId => {
+                    const member = friendMap.get(memberId);
+                    names[memberId] = member?.username || 'Member';
+                    avatars[memberId] = member?.avatarUrl || buildAvatarFallbackDataUri(member?.username || 'Member');
+                });
+
+                const convo = {
+                    name: name,
+                    groupName: name,
+                    groupAvatar: groupAvatar,
+                    avatarUrl: groupAvatar,
+                    ownerId: currentUser.uid,
+                    createdBy: currentUser.uid,
+                    memberIds: memberIds,
+                    isDirectMessage: false,
+                    lastMessagePreview: 'Group created!',
+                    lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastMessageSenderId: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    names,
+                    avatars
+                };
+
+                await db.collection('conversations').add(convo);
+                showToast('Group Created!');
+                loadFriendsList();
+            } catch (error) {
+                console.error('Create group failed', error);
+                showToast('Could not create the group.');
+            }
+        }
+
+        async function resolveConversationMembers(convoData) {
+            const memberIds = Array.isArray(convoData?.memberIds) ? convoData.memberIds : [];
+            const memberResults = await Promise.allSettled(memberIds.map(async memberId => {
+                let username = convoData?.names?.[memberId] || globalUserCache[memberId]?.name || 'Member';
+                let avatarUrl = convoData?.avatars?.[memberId] || globalUserCache[memberId]?.avatar || buildAvatarFallbackDataUri(username);
+
+                try {
+                    const userDoc = await db.collection('users').doc(memberId).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data() || {};
+                        username = userData.username || userData.displayName || username;
+                        avatarUrl = userData.avatarUrl || avatarUrl;
+                    }
+                } catch {
+                    // Fall back to cached conversation metadata if the profile lookup fails.
+                }
+
+                return { id: memberId, username, avatarUrl };
+            }));
+
+            return memberResults
+                .filter(result => result.status === 'fulfilled')
+                .map(result => result.value);
+        }
+
+        async function openGroupSettings(conversationId) {
+            if (!db || !currentUser) return;
+            const content = document.getElementById('social-content');
+            content.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+
+            const convoSnap = await db.collection('conversations').doc(conversationId).get();
+            if (!convoSnap.exists) {
+                showToast('Group not found.');
+                loadFriendsList();
+                return;
+            }
+
+            const convoData = convoSnap.data();
+            if (!convoData || convoData.isDirectMessage) {
+                openChat(conversationId, getConversationDisplayName(convoData));
+                return;
+            }
+
+            const memberIds = Array.isArray(convoData.memberIds) ? convoData.memberIds : [];
+            if (!memberIds.includes(currentUser.uid)) {
+                showToast('You are no longer in this group.');
+                loadFriendsList();
+                return;
+            }
+
+            const displayName = getConversationDisplayName(convoData);
+            const escapedDisplayName = displayName.replace(/'/g, "\\'");
+            const ownerId = getGroupOwnerId(convoData);
+            const isOwner = ownerId === currentUser.uid;
+            const groupAvatar = getConversationAvatar(convoData);
+            const members = await resolveConversationMembers(convoData);
+            const ownerName = members.find(member => member.id === ownerId)?.username || 'Unknown Owner';
+
+            content.innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="openChat('${conversationId}', '${escapedDisplayName}')" class="text-gray-400 hover:text-white px-2"><i class="fas fa-chevron-left"></i></button>
+                    <div class="font-bold">Group Settings</div>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <div class="flex items-center gap-4">
+                        <div class="relative w-20 h-20 flex-shrink-0">
+                            <img id="group-settings-avatar-preview" src="${groupAvatar}" class="w-20 h-20 rounded-2xl border border-white/10 object-cover bg-black" onerror="handleAvatarFallback(this, '${escapedDisplayName}')">
+                            ${isOwner ? `
+                                <input type="file" id="group-settings-avatar-input" accept="image/*" class="hidden" onchange="handleGroupAvatarChange('group-settings-avatar-input', 'group-settings-avatar-preview')">
+                                <label for="group-settings-avatar-input" class="upload-button"><i class="fas fa-camera text-white text-sm"></i></label>
+                            ` : ''}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-[0.18em] mb-2">Group Name</label>
+                            <input type="text" id="group-settings-name" value="${escapeHtml(displayName)}" class="modal-input w-full" ${isOwner ? '' : 'disabled'}>
+                            <div class="text-[11px] text-gray-400 mt-2">${members.length} members • ${isOwner ? 'You own this group' : `Owned by ${escapeHtml(ownerName)}`}</div>
+                            ${isOwner ? `
+                                <div class="flex gap-2 mt-3">
+                                    <button class="btn-secondary flex-1" type="button" onclick="resetGroupAvatarPreview('group-settings-avatar-preview', 'group-settings-name')">Reset Photo</button>
+                                    <button class="btn-primary flex-1" type="button" onclick="saveGroupSettings('${conversationId}')">Save Changes</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-[0.18em] mb-2">Members</div>
+                    <div class="space-y-2">
+                        ${members.map(member => `
+                            <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2 gap-3">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <img src="${member.avatarUrl}" class="w-9 h-9 rounded-full object-cover bg-black flex-shrink-0" onerror="handleAvatarFallback(this, '${member.username.replace(/'/g, "\\'")}')">
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-bold truncate">${escapeHtml(member.username)}</div>
+                                        <div class="text-[10px] text-gray-400 uppercase tracking-[0.14em]">
+                                            ${member.id === ownerId ? 'Owner' : (member.id === currentUser.uid ? 'You' : 'Member')}
+                                        </div>
+                                    </div>
+                                </div>
+                                ${isOwner && member.id !== currentUser.uid ? `
+                                    <button class="btn-secondary text-xs" style="padding:8px 12px;" type="button" onclick="kickGroupMember('${conversationId}', '${member.id}')"><i class="fas fa-user-minus"></i><span>Kick</span></button>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    ${isOwner
+                        ? `<button class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition" type="button" onclick="deleteOwnedGroup('${conversationId}')"><i class="fas fa-trash mr-2"></i>Delete Group</button>`
+                        : `<button class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition" type="button" onclick="leaveGroup('${conversationId}')"><i class="fas fa-sign-out-alt mr-2"></i>Leave Group</button>`
+                    }
+                    <button class="btn-secondary flex-1" type="button" onclick="openChat('${conversationId}', '${escapedDisplayName}')">Back To Chat</button>
+                </div>
+            `;
+        }
+
+        async function saveGroupSettings(conversationId) {
+            if (!db || !currentUser) return;
+            try {
+                const convoRef = db.collection('conversations').doc(conversationId);
+                const convoSnap = await convoRef.get();
+                if (!convoSnap.exists) { showToast('Group not found.'); return; }
+
+                const convoData = convoSnap.data();
+                const ownerId = getGroupOwnerId(convoData);
+                if (convoData?.isDirectMessage || ownerId !== currentUser.uid) {
+                    showToast('Only the group owner can edit this group.');
+                    return;
+                }
+
+                const nameInput = document.getElementById('group-settings-name');
+                const avatarPreview = document.getElementById('group-settings-avatar-preview');
+                const name = nameInput?.value?.trim();
+                if (!name) {
+                    showToast('Group name is required.');
+                    return;
+                }
+
+                const currentIdentity = getCurrentIdentity();
+                const groupAvatar = avatarPreview?.src || buildAvatarFallbackDataUri(name);
+
+                await convoRef.update({
+                    ownerId,
+                    name,
+                    groupName: name,
+                    avatarUrl: groupAvatar,
+                    groupAvatar,
+                    [`names.${currentUser.uid}`]: currentIdentity.username,
+                    [`avatars.${currentUser.uid}`]: currentIdentity.avatarUrl,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast('Group updated.');
+                openChat(conversationId, name);
+            } catch (error) {
+                console.error('Save group settings failed', error);
+                showToast('Could not update the group.');
+            }
+        }
+
+        async function leaveGroup(conversationId) {
+            if (!db || !currentUser) return;
+            try {
+                const convoRef = db.collection('conversations').doc(conversationId);
+                const convoSnap = await convoRef.get();
+                if (!convoSnap.exists) { showToast('Group not found.'); return; }
+
+                const convoData = convoSnap.data();
+                const ownerId = getGroupOwnerId(convoData);
+                if (ownerId === currentUser.uid) {
+                    showToast('Owners delete the group instead of leaving it.');
+                    return;
+                }
+
+                if (!confirm(`Leave ${getConversationDisplayName(convoData)}?`)) return;
+
+                await convoRef.update(buildMemberRemovalPatch(currentUser.uid));
+                LauncherState.activeConversationId = null;
+                showToast('You left the group.');
+                loadFriendsList();
+            } catch (error) {
+                console.error('Leave group failed', error);
+                showToast('Could not leave the group.');
+            }
+        }
+
+        async function kickGroupMember(conversationId, memberId) {
+            if (!db || !currentUser || !memberId) return;
+            if (memberId === currentUser.uid) {
+                showToast('You cannot kick yourself.');
+                return;
+            }
+
+            try {
+                const convoRef = db.collection('conversations').doc(conversationId);
+                const convoSnap = await convoRef.get();
+                if (!convoSnap.exists) { showToast('Group not found.'); return; }
+
+                const convoData = convoSnap.data();
+                if (getGroupOwnerId(convoData) !== currentUser.uid) {
+                    showToast('Only the group owner can remove members.');
+                    return;
+                }
+
+                const memberName = convoData?.names?.[memberId] || globalUserCache[memberId]?.name || 'this member';
+                if (!confirm(`Remove ${memberName} from the group?`)) return;
+
+                await convoRef.update(buildMemberRemovalPatch(memberId));
+                showToast(`${memberName} was removed.`);
+                openGroupSettings(conversationId);
+            } catch (error) {
+                console.error('Kick member failed', error);
+                showToast('Could not remove that member.');
+            }
+        }
+
+        async function deleteConversationWithMessages(conversationId) {
+            const messagesRef = db.collection(`conversations/${conversationId}/messages`);
+            while (true) {
+                const snapshot = await messagesRef.limit(100).get();
+                if (snapshot.empty) break;
+
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+
+                if (snapshot.size < 100) break;
+            }
+            await db.collection('conversations').doc(conversationId).delete();
+        }
+
+        async function deleteOwnedGroup(conversationId) {
+            if (!db || !currentUser) return;
+            try {
+                const convoRef = db.collection('conversations').doc(conversationId);
+                const convoSnap = await convoRef.get();
+                if (!convoSnap.exists) { showToast('Group not found.'); return; }
+
+                const convoData = convoSnap.data();
+                if (getGroupOwnerId(convoData) !== currentUser.uid) {
+                    showToast('Only the group owner can delete this group.');
+                    return;
+                }
+
+                if (!confirm(`Delete ${getConversationDisplayName(convoData)} for everyone?`)) return;
+
+                await deleteConversationWithMessages(conversationId);
+                LauncherState.activeConversationId = null;
+                LauncherState.lastConversationMessageKey.delete(conversationId);
+                showToast('Group deleted.');
+                loadFriendsList();
+            } catch (error) {
+                console.error('Delete group failed', error);
+                showToast('Could not delete the group.');
+            }
         }
 
         async function openChat(conversationId, name) {
+            LauncherState.activeConversationId = conversationId;
             const content = document.getElementById('social-content');
             content.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
             
             const convoSnap = await db.collection('conversations').doc(conversationId).get();
             const convoData = convoSnap.data();
             let otherUser = null;
+            let groupMeta = null;
+
+            if (!convoData) {
+                showToast('Conversation not found.');
+                loadFriendsList();
+                return;
+            }
+
+            if (Array.isArray(convoData.memberIds) && !convoData.memberIds.includes(currentUser.uid)) {
+                showToast('You no longer have access to this chat.');
+                loadFriendsList();
+                return;
+            }
             
             if (convoData && convoData.isDirectMessage) {
                 const otherUid = convoData.memberIds.find(id => id !== currentUser.uid);
@@ -1426,6 +2205,13 @@
                         };
                     }
                 }
+            } else {
+                groupMeta = {
+                    name: getConversationDisplayName(convoData),
+                    avatarUrl: getConversationAvatar(convoData),
+                    ownerId: getGroupOwnerId(convoData),
+                    memberCount: Array.isArray(convoData.memberIds) ? convoData.memberIds.length : 0
+                };
             }
 
             content.innerHTML = `
@@ -1434,12 +2220,23 @@
                         <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-1"><i class="fas fa-chevron-left"></i></button>
                         ${otherUser ? `
                             <div class="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-1 rounded transition" onclick="viewOtherProfile('${otherUser.id}')">
-                                <img src="${otherUser.avatarUrl}" id="chat-header-img" data-user-id="${otherUser.id}" class="w-8 h-8 rounded-full border border-white/10">
-                                <div class="font-bold truncate text-sm" id="chat-header-name" data-user-id="${otherUser.id}">${otherUser.username}</div>
+                                <img src="${otherUser.avatarUrl}" id="chat-header-img" data-user-id="${otherUser.id}" class="w-8 h-8 rounded-full border border-white/10" onerror="handleAvatarFallback(this, '${otherUser.username.replace(/'/g, "\\'")}')">
+                                <div class="font-bold truncate text-sm" id="chat-header-name" data-user-id="${otherUser.id}">${escapeHtml(otherUser.username)}</div>
                             </div>
-                        ` : `<div class="font-bold truncate text-sm px-2">${name}</div>`}
+                        ` : `
+                            <div class="flex items-center gap-3 min-w-0 px-1">
+                                <img src="${groupMeta?.avatarUrl || buildAvatarFallbackDataUri(name || 'Group')}" class="w-9 h-9 rounded-xl border border-white/10 object-cover bg-black flex-shrink-0" onerror="handleAvatarFallback(this, '${(groupMeta?.name || name || 'Group').replace(/'/g, "\\'")}')">
+                                <div class="min-w-0">
+                                    <div class="font-bold truncate text-sm">${escapeHtml(groupMeta?.name || name)}</div>
+                                    <div class="text-[10px] text-gray-400 uppercase tracking-[0.14em]">${groupMeta?.memberCount || 0} members${groupMeta?.ownerId === currentUser.uid ? ' • You own this group' : ''}</div>
+                                </div>
+                            </div>
+                        `}
                     </div>
-                    ${otherUser ? `<button onclick="viewOtherProfile('${otherUser.id}')" class="text-gray-400 hover:text-white text-xs"><i class="fas fa-info-circle"></i></button>` : ''}
+                    ${otherUser
+                        ? `<button onclick="viewOtherProfile('${otherUser.id}')" class="text-gray-400 hover:text-white text-xs"><i class="fas fa-info-circle"></i></button>`
+                        : `<button onclick="openGroupSettings('${conversationId}')" class="text-gray-400 hover:text-white text-xs"><i class="fas fa-sliders"></i></button>`
+                    }
                 </div>
                 <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-3 pr-2" style="max-height: 55vh;"></div>
                 <div id="typing-status" class="text-[10px] text-gray-500 italic mb-2 h-4 px-2"></div>
@@ -1644,12 +2441,11 @@
             let html = '';
             snap.forEach(doc => {
                 const data = doc.data();
-                const otherNames = data.names ? Object.values(data.names).filter(n => n !== currentUser.displayName).join(', ') : 'Unknown Chat';
-                const displayName = data.isDirectMessage ? otherNames : (data.groupName || 'Unnamed Group');
+                const displayName = getConversationDisplayName(data);
                 
                 html += `
-                    <div class="flex items-center justify-between bg-white/5 p-2 rounded hover:bg-white/10 cursor-pointer transition mb-1" onclick="executeForward('${doc.id}')">
-                        <div class="text-sm font-bold truncate">${displayName}</div>
+                    <div class="forward-card" onclick="executeForward('${doc.id}')">
+                        <div class="text-sm font-bold truncate">${escapeHtml(displayName)}</div>
                         <i class="fas fa-chevron-right text-gray-500 text-xs"></i>
                     </div>
                 `;
@@ -1660,12 +2456,13 @@
         async function executeForward(targetConvoId) {
             if(!contextTarget) return;
             try {
+                const currentIdentity = getCurrentIdentity();
                 const msgDoc = await db.collection(`conversations/${contextTarget.convoId}/messages`).doc(contextTarget.msgId).get();
                 const msgData = msgDoc.data();
                 
                 await db.collection(`conversations/${targetConvoId}/messages`).add({
                     senderId: currentUser.uid,
-                    senderName: currentUser.displayName,
+                    senderName: currentIdentity.username,
                     text: msgData.text || '',
                     type: msgData.type || 'text',
                     imageUrl: msgData.imageUrl || '',
@@ -1704,7 +2501,7 @@
                 <div style="display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; margin-bottom:24px; padding-top:8px;">
                     <div style="position:relative; width:96px; height:96px;">
                         <div style="position:absolute; inset:-4px; border-radius:50%; background:rgba(59,130,246,0.3); filter:blur(8px); animation:pulse 2s infinite;"></div>
-                        <img src="${uAvatar}" class="user-avatar-${userId}" style="width:96px; height:96px; border-radius:50%; border:3px solid white; position:relative; z-index:10; object-fit:cover; display:block;">
+                        <img src="${uAvatar}" class="user-avatar-${userId}" onerror="handleAvatarFallback(this, '${uName.replace(/'/g, "\\'")}')" style="width:96px; height:96px; border-radius:50%; border:3px solid white; position:relative; z-index:10; object-fit:cover; display:block;">
                     </div>
                     <div>
                         <div class="user-name-${userId}" style="font-size:24px; font-weight:900; color:white; line-height:1;">${uName}</div>
@@ -1791,11 +2588,15 @@
         }
 
         let typingTimeout = null;
+        let typingWriteTimeout = null;
         function handleTyping(convoId) {
             if (typingTimeout) clearTimeout(typingTimeout);
-            db.collection('conversations').doc(convoId).set({
-                typing: { [currentUser.uid]: Date.now() }
-            }, { merge: true });
+            if (typingWriteTimeout) clearTimeout(typingWriteTimeout);
+            typingWriteTimeout = setTimeout(() => {
+                db.collection('conversations').doc(convoId).set({
+                    typing: { [currentUser.uid]: Date.now() }
+                }, { merge: true });
+            }, 250);
             typingTimeout = setTimeout(() => {
                 db.collection('conversations').doc(convoId).set({
                     typing: { [currentUser.uid]: 0 }
@@ -1807,6 +2608,7 @@
             const inp = document.getElementById('chat-input');
             const txt = inp.value.trim();
             if(!txt || !currentUser || !db) return;
+            const currentIdentity = getCurrentIdentity();
 
             // Chat Moderation Filter
             if(!isMessageSafe(txt)) {
@@ -1819,7 +2621,7 @@
             
             db.collection(`conversations/${conversationId}/messages`).add({
                 senderId: currentUser.uid,
-                senderName: currentUser.displayName,
+                senderName: currentIdentity.username,
                 text: txt, type: 'text', imageUrl: '', replyToMessageId: '',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(), deleted: false
             });
@@ -1834,6 +2636,7 @@
         async function handleChatImageUpload(conversationId) {
             const file = document.getElementById('chat-image-input').files[0];
             if (!file) return;
+            const currentIdentity = getCurrentIdentity();
 
             showToast('Uploading image...');
 
@@ -1852,7 +2655,7 @@
 
                 db.collection(`conversations/${conversationId}/messages`).add({
                     senderId: currentUser.uid,
-                    senderName: currentUser.displayName,
+                    senderName: currentIdentity.username,
                     text: '', type: 'image', imageUrl: compressed,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(), deleted: false
                 });
@@ -2168,7 +2971,7 @@
             const toast = document.createElement('div');
             toast.className = 'bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-3 rounded shadow-2xl flex items-center gap-3 transform translate-y-full opacity-0 transition-all duration-300 pointer-events-auto';
             if (msg.includes('New message')) { toast.classList.add('cursor-pointer'); toast.onclick = () => toggleSocial(); }
-            toast.innerHTML = `<i class="fas fa-bell text-blue-400"></i> <span class="font-medium text-sm flex-1">${msg}</span>`;
+            toast.innerHTML = `<i class="fas fa-bell text-blue-400"></i> <span class="font-medium text-sm flex-1">${escapeHtml(msg)}</span>`;
             container.appendChild(toast);
             requestAnimationFrame(() => toast.classList.remove('translate-y-full', 'opacity-0'));
             setTimeout(() => { toast.classList.add('translate-y-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, duration);
@@ -2430,6 +3233,50 @@
                 updateDisplay();
             }
             updateProfileDisplay();
+            syncGameActionsState();
+        }
+
+        function syncGameActionsState() {
+            const game = filteredGames[currentIndex];
+            const favoriteButton = document.getElementById('game-actions-favorite');
+            const title = document.getElementById('game-actions-title');
+            const description = document.getElementById('game-actions-desc');
+            if (!game) return;
+
+            if (title) title.textContent = game.title;
+            if (description) description.textContent = game.desc || 'Quick actions for the selected game.';
+            if (!favoriteButton) return;
+
+            const favoriteIds = loadProfile().favoriteItems || [];
+            const isFavorite = favoriteIds.includes(game.id);
+            favoriteButton.innerHTML = isFavorite
+                ? '<i class="fas fa-heart"></i><span>Unfavorite</span>'
+                : '<i class="fas fa-heart"></i><span>Favorite</span>';
+            favoriteButton.classList.toggle('active', isFavorite);
+        }
+
+        function openGameActions() {
+            if (!filteredGames.length) return;
+            syncGameActionsState();
+            document.getElementById('game-actions-modal').classList.add('active');
+        }
+
+        function openCurrentGameDirect() {
+            const game = filteredGames[currentIndex];
+            if (!game?.url) return;
+            window.open(normalizeLaunchUrl(game.url), '_blank', 'noopener,noreferrer');
+            closeModals();
+        }
+
+        async function copyCurrentGameLink() {
+            const game = filteredGames[currentIndex];
+            if (!game?.url) return;
+            try {
+                await navigator.clipboard.writeText(normalizeLaunchUrl(game.url));
+                showToast('Link copied.');
+            } catch {
+                showToast('Could not copy link.');
+            }
         }
 
                 function closeGameIframe() {
@@ -2465,7 +3312,8 @@
             const favs = profile.favoriteItems || [];
             const favBtn = document.getElementById('btn-favorites');
             if (favBtn) {
-                favBtn.style.display = favs.length > 0 ? 'block' : 'none';
+                favBtn.classList.toggle('collapsed', favs.length === 0);
+                favBtn.classList.toggle('revealed', favs.length > 0);
             }
             return favs.length > 0;
         }
@@ -2520,7 +3368,6 @@
         }
 
         function getMergedCatalog() {
-            const pinnedGameOrder = ['store', 'explore', 'psplus'];
             const merged = [...gameData];
             cloudData.forEach(item => {
                 const index = merged.findIndex(entry => entry.id === item.id);
@@ -2529,8 +3376,8 @@
             });
             return merged.sort((a, b) => {
                 if (a.type === 'games' && b.type === 'games') {
-                    const aPinnedIndex = pinnedGameOrder.indexOf(a.id);
-                    const bPinnedIndex = pinnedGameOrder.indexOf(b.id);
+                    const aPinnedIndex = LauncherConfig.pinnedGameOrder.indexOf(a.id);
+                    const bPinnedIndex = LauncherConfig.pinnedGameOrder.indexOf(b.id);
                     const aIsPinned = aPinnedIndex !== -1;
                     const bIsPinned = bPinnedIndex !== -1;
 
@@ -2543,6 +3390,20 @@
 
                 return (a.title || '').localeCompare(b.title || '');
             });
+        }
+
+        function debounceSearch() {
+            if (LauncherState.searchDebounceTimer) clearTimeout(LauncherState.searchDebounceTimer);
+            LauncherState.searchDebounceTimer = setTimeout(filterGames, LauncherConfig.searchDebounceMs);
+        }
+
+        function openSearchResult(gameId) {
+            const game = getMergedCatalog().find(entry => entry.id === gameId);
+            if (!game) return;
+            switchCategory(game.type);
+            const targetIndex = filteredGames.findIndex(entry => entry.id === gameId);
+            closeModals();
+            setFocus(targetIndex > -1 ? targetIndex : 0);
         }
 
         function resolveGameAsset(baseUrl, assetUrl) {
@@ -2784,6 +3645,7 @@
                     if (isFav) favBtn.classList.add('active');
                     else favBtn.classList.remove('active');
                 }
+                syncGameActionsState();
                 
                 gameInfo.style.opacity = '1';
             }, FADE_MS);
@@ -2833,11 +3695,11 @@
         function filterGames() {
             const search = document.querySelector('#search-input').value.toLowerCase();
             const searchResults = document.getElementById('search-results');
-            searchResults.innerHTML = '';
             const catalog = getMergedCatalog();
             
             if (!search.trim()) {
-                document.getElementById('search-results-count').textContent = 'Type to search...';
+                searchResults.innerHTML = '';
+                document.getElementById('search-results-count').textContent = LauncherConfig.searchPromptText;
                 return;
             }
             
@@ -2847,17 +3709,8 @@
             );
             
             document.getElementById('search-results-count').textContent = `Found ${results.length} result${results.length !== 1 ? 's' : ''}`;
-            
-            results.slice(0, 12).forEach(game => {
-                const tile = document.createElement('div');
-                tile.className = 'bg-gray-800 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-700 transition transform hover:scale-105';
-                tile.onclick = () => {
-                    switchCategory(game.type);
-                    currentIndex = filteredGames.indexOf(game);
-                    closeModals();
-                    setFocus(currentIndex);
-                };
-                
+
+            const resultsHtml = results.slice(0, LauncherConfig.searchResultsLimit).map(game => {
                 let icon = '';
                 if (game.img) {
                     icon = `<img src="${game.img}" alt="${game.title}" class="w-12 h-12 mx-auto mb-2 rounded object-cover">`;
@@ -2866,9 +3719,13 @@
                 } else {
                     icon = `<i class="fas fa-gamepad text-2xl text-gray-500 mb-2 block"></i>`;
                 }
-                
-                tile.innerHTML = `${icon}<div class="text-sm font-semibold truncate">${game.title}</div>`;
-                searchResults.appendChild(tile);
+
+                return `<button type="button" class="bg-gray-800 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-700 transition transform hover:scale-105" data-search-game="${game.id}">${icon}<div class="text-sm font-semibold truncate">${game.title}</div></button>`;
+            }).join('');
+
+            searchResults.innerHTML = resultsHtml || '<div class="col-span-3 text-sm text-gray-400 text-center py-6">No matches found.</div>';
+            searchResults.querySelectorAll('[data-search-game]').forEach(tile => {
+                tile.addEventListener('click', () => openSearchResult(tile.dataset.searchGame));
             });
         }
 
@@ -2920,7 +3777,7 @@
             content.innerHTML = `
                 <div class="flex items-center gap-6">
                     <div class="relative profile-avatar">
-                        <img id="profile-pic-preview" src="${profile.profilePic}" alt="Profile">
+                        <img id="profile-pic-preview" src="${profile.profilePic}" alt="Profile" onerror="handleAvatarFallback(this, '${profile.username.replace(/'/g, "\\'")}')">
                         <input type="file" id="profile-pic-input" accept="image/*" class="hidden">
                         <label for="profile-pic-input" class="upload-button">
                             <i class="fas fa-camera text-white text-sm"></i>
@@ -3028,9 +3885,10 @@
         function toggleModal(id) {
             document.getElementById(id).classList.toggle('active');
             if (id === 'search-modal') {
+                if (LauncherState.searchDebounceTimer) clearTimeout(LauncherState.searchDebounceTimer);
                 document.getElementById('search-input').value = '';
                 document.getElementById('search-results').innerHTML = '';
-                document.getElementById('search-results-count').textContent = 'Type to search...';
+                document.getElementById('search-results-count').textContent = LauncherConfig.searchPromptText;
                 setTimeout(() => document.getElementById('search-input').focus(), 100);
             }
             if (id === 'profile-modal') {
@@ -3040,7 +3898,10 @@
                 switchAdminTab('catalog');
             }
         }
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
+        function closeModals() {
+            if (LauncherState.searchDebounceTimer) clearTimeout(LauncherState.searchDebounceTimer);
+            document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+        }
 
                 async function launchCurrentGame() {
             if (!filteredGames.length) return;
@@ -3054,7 +3915,7 @@
 
             const launchScreen = document.getElementById('launch-screen');
             const launchTitle = document.getElementById('launch-title');
-            launchTitle.textContent = game.url ? `Opening ${game.title}...` : `Launching ${game.title}...`;
+            launchTitle.textContent = `Opening ${game.title}...`;
             launchScreen.classList.add('active');
             if (game.url) {
                 const launchUrl = normalizeLaunchUrl(game.url);
@@ -3125,11 +3986,7 @@
         }
 
         function updateClock() {
-            const now = new Date();
-            let h = now.getHours(), m = now.getMinutes();
-            const ap = h >= 12 ? 'PM' : 'AM';
-            h = h % 12 || 12;
-            document.getElementById('clock').textContent = `${h}:${m < 10 ? '0'+m : m} ${ap}`;
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString([], LauncherConfig.clockOptions);
         }
 
         window.addEventListener('keydown', e => {
@@ -3176,7 +4033,11 @@
         document.getElementById('game-list').addEventListener('wheel', e => {
             e.preventDefault();
             if (wheelTimeout) return;
-            const delay = Math.max(40, 260 - (scrollSensitivity * 22));
+            // Delay in ms: higher sensitivity means less cooldown between wheel focus moves.
+            const delay = Math.max(
+                LauncherConfig.wheelCooldownMin,
+                LauncherConfig.wheelCooldownBase - (scrollSensitivity * LauncherConfig.wheelSensitivityStep)
+            );
             wheelTimeout = setTimeout(() => { wheelTimeout = null; }, delay);
             const delta = Math.sign(e.deltaY);
             setFocus(currentIndex + delta);
