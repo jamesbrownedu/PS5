@@ -38,6 +38,7 @@
         .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); z-index:100; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s ease; }
         .modal-overlay.active { opacity:1; pointer-events:auto; }
         .modal-content { background:#1a1a1a; border:1px solid #333; border-radius:20px; padding:40px; width:90%; max-width:500px; transform:scale(0.9); transition:transform 0.3s ease; }
+        .modal-content.max-w-2xl { max-width:700px; }
         .modal-overlay.active .modal-content { transform:scale(1); }
 
         .launch-screen { position:fixed; inset:0; background:black; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 1s ease; }
@@ -51,10 +52,15 @@
     <div id="bg-overlay"></div>
 
     <div id="search-modal" class="modal-overlay" onclick="closeModals()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h2 class="text-2xl font-bold mb-6">Search Games</h2>
-            <input type="text" placeholder="Search games..." class="w-full bg-gray-800 border-none rounded-lg p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none" oninput="filterGames()">
-            <div class="mt-6 text-gray-400 text-sm">Recently played: Spider-Man, Uncharted...</div>
+        <div class="modal-content max-w-2xl" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-4">Search Games</h2>
+            <div class="relative mb-4">
+                <i class="fas fa-search absolute left-4 top-4 text-gray-500"></i>
+                <input type="text" id="search-input" placeholder="Search games by name, type, or category..." class="w-full bg-gray-800 border border-gray-600 rounded-lg p-4 pl-12 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" oninput="performSearch()">
+            </div>
+            <div class="text-gray-400 text-sm mb-4" id="search-results-count">Type to search...</div>
+            <div id="search-results" class="grid grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+            </div>
         </div>
     </div>
 
@@ -62,9 +68,58 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <h2 class="text-2xl font-bold mb-6">Settings</h2>
             <div class="space-y-4">
-                <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>Account Management</span><i class="fas fa-chevron-right"></i></div>
+                <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700" onclick="toggleModal('profile-modal')"><span>Edit Profile</span><i class="fas fa-chevron-right"></i></div>
                 <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>Network & Sound</span><i class="fas fa-chevron-right"></i></div>
                 <div class="p-3 bg-gray-800 rounded-lg flex justify-between cursor-pointer hover:bg-gray-700"><span>System Update</span><i class="fas fa-chevron-right text-green-400"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="profile-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content max-w-2xl" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold mb-6">Edit Profile</h2>
+            <div class="space-y-6">
+                <div class="flex items-center gap-6">
+                    <div class="relative">
+                        <img id="profile-pic-preview" src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" alt="Profile" class="w-24 h-24 rounded-full border-2 border-blue-500">
+                        <input type="file" id="profile-pic-input" accept="image/*" class="hidden">
+                        <label for="profile-pic-input" class="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full cursor-pointer hover:bg-blue-600 transition">
+                            <i class="fas fa-camera text-white text-sm"></i>
+                        </label>
+                    </div>
+                    <div class="flex-1">
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold mb-2">Username</label>
+                            <input type="text" id="profile-name" placeholder="Enter username" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Bio</label>
+                    <textarea id="profile-bio" placeholder="Tell us about yourself..." class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white focus:border-blue-500 outline-none h-20 resize-none"></textarea>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-gray-800 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="stats-played">0</div>
+                        <div class="text-xs text-gray-400 mt-2">Games Played</div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-green-400" id="stats-favorites">0</div>
+                        <div class="text-xs text-gray-400 mt-2">Favorites</div>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="stats-time">0h</div>
+                        <div class="text-xs text-gray-400 mt-2">Total Time</div>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="saveProfile()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>Save Profile
+                    </button>
+                    <button onclick="closeModals()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition">
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -88,12 +143,13 @@
         <div class="flex items-center space-x-8 text-xl">
             <i class="fas fa-search cursor-pointer hover:text-blue-400 transition" onclick="toggleModal('search-modal')"></i>
             <i class="fas fa-cog cursor-pointer hover:text-blue-400 transition" onclick="toggleModal('settings-modal')"></i>
-            <div class="flex items-center space-x-2 cursor-pointer group" onclick="toggleModal('settings-modal')">
+            <div class="flex items-center space-x-2 cursor-pointer group" onclick="toggleModal('profile-modal')">
                 <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden border border-green-400 group-hover:scale-110 transition">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User">
+                    <img id="header-profile-pic" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User">
                 </div>
                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
             </div>
+            <div id="username-display" class="font-medium text-sm ml-2">Felix</div>
             <div id="clock" class="font-medium text-lg ml-4">4:42 PM</div>
         </div>
     </header>
@@ -257,7 +313,12 @@
         const activeDesc = document.getElementById('active-desc');
         const gameInfo = document.getElementById('game-info');
 
-        function init() { renderTiles(); updateClock(); setInterval(updateClock, 1000); }
+        function init() { 
+            updateProfileDisplay();
+            renderTiles(); 
+            updateClock(); 
+            setInterval(updateClock, 1000); 
+        }
 
         function switchCategory(cat) {
             currentCategory = cat;
@@ -440,22 +501,132 @@
         }
 
         function filterGames() {
-            const search = document.querySelector('#search-modal input').value.toLowerCase();
-            filteredGames = gameData.filter(g => g.type === currentCategory && g.title.toLowerCase().includes(search));
-            renderTiles();
+            const search = document.querySelector('#search-input').value.toLowerCase();
+            const searchResults = document.getElementById('search-results');
+            searchResults.innerHTML = '';
+            
+            if (!search.trim()) {
+                document.getElementById('search-results-count').innerText = 'Type to search...';
+                return;
+            }
+            
+            const results = gameData.filter(g => 
+                g.title.toLowerCase().includes(search) || 
+                g.desc.toLowerCase().includes(search)
+            );
+            
+            document.getElementById('search-results-count').innerText = `Found ${results.length} result${results.length !== 1 ? 's' : ''}`;
+            
+            results.slice(0, 12).forEach(game => {
+                const tile = document.createElement('div');
+                tile.className = 'bg-gray-800 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-700 transition transform hover:scale-105';
+                tile.onclick = () => {
+                    currentIndex = gameData.indexOf(game);
+                    filteredGames = gameData.filter(g => g.type === currentCategory);
+                    currentIndex = filteredGames.indexOf(game);
+                    closeModals();
+                    updateDisplay();
+                    recordGamePlay(game.id);
+                };
+                
+                let icon = '';
+                if (game.img) {
+                    icon = `<img src="${game.img}" alt="${game.title}" class="w-12 h-12 mx-auto mb-2 rounded object-cover">`;
+                } else if (game.icon) {
+                    icon = `<div class="mb-2">${game.icon}</div>`;
+                } else {
+                    icon = `<i class="fas fa-gamepad text-2xl text-gray-500 mb-2 block"></i>`;
+                }
+                
+                tile.innerHTML = `${icon}<div class="text-sm font-semibold truncate">${game.title}</div>`;
+                searchResults.appendChild(tile);
+            });
+        }
+
+        function performSearch() {
+            filterGames();
+        }
+
+        // Profile System
+        const defaultProfile = {
+            username: 'Felix',
+            bio: 'Gaming enthusiast',
+            profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+            gamesPlayed: 0,
+            favorites: 0,
+            totalTime: 0
+        };
+
+        function loadProfile() {
+            const saved = localStorage.getItem('userProfile');
+            return saved ? JSON.parse(saved) : { ...defaultProfile };
+        }
+
+        function saveProfile() {
+            const profile = {
+                username: document.getElementById('profile-name').value || 'Felix',
+                bio: document.getElementById('profile-bio').value,
+                profilePic: document.getElementById('profile-pic-preview').src,
+                gamesPlayed: loadProfile().gamesPlayed,
+                favorites: loadProfile().favorites,
+                totalTime: loadProfile().totalTime
+            };
+            
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+            updateProfileDisplay();
+            closeModals();
+        }
+
+        function updateProfileDisplay() {
+            const profile = loadProfile();
+            document.getElementById('header-profile-pic').src = profile.profilePic;
+            document.getElementById('username-display').innerText = profile.username;
+            document.getElementById('profile-name').value = profile.username;
+            document.getElementById('profile-bio').value = profile.bio;
+            document.getElementById('profile-pic-preview').src = profile.profilePic;
+            document.getElementById('stats-played').innerText = profile.gamesPlayed;
+            document.getElementById('stats-favorites').innerText = profile.favorites;
+            document.getElementById('stats-time').innerText = Math.floor(profile.totalTime / 60) + 'h';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('profile-pic-input').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        document.getElementById('profile-pic-preview').src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+
+        function recordGamePlay(gameId) {
+            const profile = loadProfile();
+            profile.gamesPlayed += 1;
+            profile.totalTime += 1;
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+            updateProfileDisplay();
         }
 
         function toggleModal(id) {
             document.getElementById(id).classList.toggle('active');
             if (id === 'search-modal') {
-                document.querySelector('#search-modal input').value = '';
-                filterGames();
+                document.getElementById('search-input').value = '';
+                document.getElementById('search-results').innerHTML = '';
+                document.getElementById('search-results-count').innerText = 'Type to search...';
+                setTimeout(() => document.getElementById('search-input').focus(), 100);
+            }
+            if (id === 'profile-modal') {
+                updateProfileDisplay();
             }
         }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
 
         async function launchCurrentGame() {
             const game = filteredGames[currentIndex];
+            recordGamePlay(game.id);
             const launchScreen = document.getElementById('launch-screen');
             const launchTitle = document.getElementById('launch-title');
             launchTitle.innerText = game.url ? `Opening ${game.title}...` : `Launching ${game.title}...`;
