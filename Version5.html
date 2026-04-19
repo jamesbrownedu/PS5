@@ -1926,7 +1926,7 @@
                 <div class="mb-8 p-4 bg-white/5 rounded border border-white/10">
                     <h3 class="text-xl font-bold mb-4 text-gray-300">Add / Edit Content</h3>
                     <div class="grid grid-cols-2 gap-4">
-                        <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro')" class="modal-input w-full">
+                        <input type="hidden" id="admin-add-id">
                         <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
                         <select id="admin-add-type" class="modal-input w-full"><option value="games">Games</option><option value="media">Media</option><option value="browsers">Browsers</option></select>
                         <input type="text" id="admin-add-url" placeholder="Game URL (Source)" class="modal-input w-full">
@@ -1991,7 +1991,7 @@
                                 </div>
                                 <div class="overflow-hidden">
                                     <div class="font-bold truncate text-white items-center flex">${item.title} ${tag}</div>
-                                    <div class="text-[10px] text-gray-500 uppercase font-black">${item.type} | ID: ${item.id}</div>
+                                    <div class="text-[10px] text-gray-500 uppercase font-black">${item.type}</div>
                                 </div>
                             </div>
                             <div class="flex gap-2 flex-shrink-0">${actionBtns}</div>
@@ -2125,17 +2125,35 @@
             const originalText = btn.textContent;
             btn.textContent = 'Saving...';
             const type = document.getElementById('admin-add-type').value;
-            const docId = document.getElementById('admin-add-id').value.trim();
+            let docId = document.getElementById('admin-add-id').value.trim();
+            const isNewCatalogItem = !docId;
             const title = document.getElementById('admin-add-title').value.trim();
             const url = document.getElementById('admin-add-url').value.trim();
             const img = document.getElementById('admin-add-img').value.trim();
             const icon = document.getElementById('admin-add-icon').value.trim();
             const desc = document.getElementById('admin-add-desc').value.trim();
-            if(!docId || !title || !url) { showToast('ID, Title, and Game URL are required'); btn.textContent = originalText; return; }
+            
+            if(!title || !url) { showToast('Title and Game URL are required'); btn.textContent = originalText; return; }
+            
+            if(!docId) {
+                // Auto-generate ID from title
+                docId = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+            }
             try {
-                await db.collection(type).doc(docId).set({
-                    id: docId, title, url, img, icon, desc: desc || '', addedBy: currentUser.uid, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                const payload = {
+                    id: docId,
+                    title,
+                    url,
+                    img,
+                    icon,
+                    desc: desc || '',
+                    addedBy: currentUser.uid,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                if (isNewCatalogItem) {
+                    payload.isLogo = false;
+                }
+                await db.collection(type).doc(docId).set(payload, { merge: true });
                 showToast(`${title} saved!`);
                 cancelAdminEdit();
                 dynamicGamesLoaded = false;
@@ -2350,7 +2368,8 @@
             'psplus': 'https://image.api.playstation.com/vulcan/ap/rnd/202205/1606/TO8qsdJ4fIdCCYd2hgG4IBw9.png'
         };
 
-        const gameData = rawGameData.map(enrichGameData);
+        let gameData = rawGameData.map(enrichGameData);
+        let cloudData = [];
 
         let originalTitle = document.title; let originalFavicon = document.querySelector('link[rel="icon"]').href;
         let currentCategory = 'games', filteredGames = [], currentIndex = 0, hoverFocusTimer = null;
@@ -2423,7 +2442,7 @@
         function init() { 
             loadSettings();
             updateProfileDisplay();
-            renderTiles(); 
+            syncCloudLibrary(); // New Cloud Sync
             updateClock(); 
             let clockInterval = setInterval(updateClock, 1000);
             gameList.addEventListener('mouseleave', clearScheduledFocus);
@@ -2451,25 +2470,79 @@
             return favs.length > 0;
         }
 
+        async function syncCloudLibrary() {
+            if(!db) {
+                switchCategory(currentCategory);
+                return;
+            }
+            try {
+                const [g, m, b] = await Promise.all([
+                    db.collection('games').get(),
+                    db.collection('media').get(),
+                    db.collection('browsers').get()
+                ]);
+                
+                const cloudItems = [
+                    ...g.docs.map(d => ({...d.data(), id: d.id, type:'games', isCloud: true})),
+                    ...m.docs.map(d => ({...d.data(), id: d.id, type:'media', isCloud: true})),
+                    ...b.docs.map(d => ({...d.data(), id: d.id, type:'browsers', isCloud: true}))
+                ];
+                
+                cloudData = cloudItems.map(enrichGameData);
+                switchCategory(currentCategory);
+            } catch(e) { 
+                console.error("Cloud Sync Error:", e);
+                switchCategory(currentCategory);
+            }
+        }
+
         function switchCategory(cat) {
             currentCategory = cat;
             document.querySelectorAll('.media-btn').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById('btn-' + cat);
             if (activeBtn) activeBtn.classList.add('active');
             
+            const combined = getMergedCatalog();
             if (cat === 'favorites') {
                 const profile = loadProfile();
                 const favs = profile.favoriteItems || [];
-                filteredGames = gameData.filter(g => favs.includes(g.id));
+                filteredGames = combined.filter(g => favs.includes(g.id));
             } else {
-                filteredGames = gameData.filter(g => g.type === cat);
+                filteredGames = combined.filter(g => g.type === cat);
             }
+            currentIndex = 0;
             renderTiles();
         }
 
         function buildSiteIconUrl(url) {
             try { return `https://www.google.com/s2/favicons?sz=256&domain_url=${encodeURIComponent(new URL(url).origin)}`; }
             catch { return ''; }
+        }
+
+        function getMergedCatalog() {
+            const pinnedGameOrder = ['store', 'explore', 'psplus'];
+            const merged = [...gameData];
+            cloudData.forEach(item => {
+                const index = merged.findIndex(entry => entry.id === item.id);
+                if (index > -1) merged[index] = item;
+                else merged.push(item);
+            });
+            return merged.sort((a, b) => {
+                if (a.type === 'games' && b.type === 'games') {
+                    const aPinnedIndex = pinnedGameOrder.indexOf(a.id);
+                    const bPinnedIndex = pinnedGameOrder.indexOf(b.id);
+                    const aIsPinned = aPinnedIndex !== -1;
+                    const bIsPinned = bPinnedIndex !== -1;
+
+                    if (aIsPinned && bIsPinned) return aPinnedIndex - bPinnedIndex;
+                    if (a.id === 'psplus') return 1;
+                    if (b.id === 'psplus') return -1;
+                    if (aIsPinned) return -1;
+                    if (bIsPinned) return 1;
+                }
+
+                return (a.title || '').localeCompare(b.title || '');
+            });
         }
 
         function resolveGameAsset(baseUrl, assetUrl) {
@@ -2556,7 +2629,21 @@
 
         function enrichGameData(game) {
             const baseGame = game.type === 'games' ? { ...game, bg: resolveGameBackground(game) } : game;
-            if (baseGame.type !== 'games' || baseGame.icon) return baseGame;
+            
+            // Default isLogo to false ONLY for new custom cloud games
+            if (baseGame.isLogo === undefined && baseGame.isCloud) {
+                baseGame.isLogo = false;
+            }
+
+            if (baseGame.type !== 'games' || baseGame.icon) {
+                const manualVisual = baseGame.icon || baseGame.img;
+                const isMarkupVisual = typeof manualVisual === 'string' && manualVisual.trim().startsWith('<');
+                if (isMarkupVisual) {
+                    return { ...baseGame };
+                }
+                return { ...baseGame, img: manualVisual };
+            }
+            
             const fallbackImg = buildSiteIconUrl(baseGame.url);
             const override = gameIconOverrides[baseGame.id];
             if (override?.img) {
@@ -2588,13 +2675,13 @@
         }
 
         function renderTiles() {
-            // Check if we are rendering favorites
+            const combined = getMergedCatalog();
             if (currentCategory === 'favorites') {
                 const profile = loadProfile();
                 const favs = profile.favoriteItems || [];
-                filteredGames = gameData.filter(g => favs.includes(g.id));
+                filteredGames = combined.filter(g => favs.includes(g.id));
             } else {
-                filteredGames = gameData.filter(g => g.type === currentCategory);
+                filteredGames = combined.filter(g => g.type === currentCategory);
             }
             currentIndex = 0;
             gameList.innerHTML = '';
@@ -2604,13 +2691,17 @@
                 tile.dataset.index = index;
                 tile.style.animationDelay = `${index * 0.04}s`;
                 let innerContent = '';
-                if (game.icon && game.icon.startsWith('http')) {
-                    innerContent = `<img src="${game.icon}" alt="${game.title}" class="game-logo" onerror="handleImgError(this)">`;
+                const isHtmlIcon = (game.img && game.img.trim().startsWith('<')) || (game.icon && game.icon.trim().startsWith('<'));
+
+                if (isHtmlIcon) {
+                    const iconHtml = (game.img && game.img.includes('<')) ? game.img : game.icon;
+                    innerContent = `<div class="flex items-center justify-center w-full h-full text-4xl accent-text">${iconHtml}</div>`;
+                } else if (game.icon && game.icon.startsWith('http')) {
+                    const imgClass = game.isLogo ? 'game-logo' : '';
+                    innerContent = `<img src="${game.icon}" alt="${game.title}" class="${imgClass}" data-fallback="${game.fallbackImg || ''}" onerror="handleImgError(this)">`;
                 } else if (game.img) {
                     const imgClass = game.isLogo ? 'game-logo' : '';
                     innerContent = `<img src="${game.img}" alt="${game.title}" class="${imgClass}" data-fallback="${game.fallbackImg || ''}" onerror="handleImgError(this)">`;
-                } else if (game.icon) {
-                    innerContent = game.icon; // Fallback for old FontAwesome HTML if any
                 } else if (game.placeholder) {
                     innerContent = `<div class="placeholder">${game.placeholder}</div>`;
                 } else {
@@ -2743,13 +2834,14 @@
             const search = document.querySelector('#search-input').value.toLowerCase();
             const searchResults = document.getElementById('search-results');
             searchResults.innerHTML = '';
+            const catalog = getMergedCatalog();
             
             if (!search.trim()) {
                 document.getElementById('search-results-count').textContent = 'Type to search...';
                 return;
             }
             
-            const results = gameData.filter(g => 
+            const results = catalog.filter(g => 
                 g.title.toLowerCase().includes(search) || 
                 g.desc.toLowerCase().includes(search)
             );
