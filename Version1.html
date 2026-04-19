@@ -600,7 +600,12 @@
             <p class="text-gray-400 text-sm mb-6">Enter a username and password. If it doesn't exist, we'll create an account for you!</p>
             <div id="auth-error" class="text-red-400 text-sm mb-2 hidden bg-red-900/40 p-2 rounded"></div>
             <input type="text" id="auth-username" placeholder="Username" class="modal-input w-full mb-3" onkeypress="if(event.key==='Enter') handleAuth()">
-            <input type="password" id="auth-password" placeholder="Password" class="modal-input w-full mb-4" onkeypress="if(event.key==='Enter') handleAuth()">
+            <div class="relative w-full mb-4">
+                <input type="password" id="auth-password" placeholder="Password" class="modal-input w-full" onkeypress="if(event.key==='Enter') handleAuth()">
+                <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition">
+                    <i id="password-toggle-icon" class="fas fa-eye"></i>
+                </button>
+            </div>
             <button class="btn-primary w-full py-3" onclick="handleAuth()">Continue</button>
         </div>
     </div>
@@ -615,20 +620,7 @@
                 <button class="text-gray-400 font-bold hover:text-white px-4 py-2 rounded" onclick="switchAdminTab('users')">Users & Mods</button>
             </div>
             <div id="admin-content" class="flex-1 overflow-y-auto pr-2">
-                <h3 class="text-xl font-bold mb-4 text-gray-300">Add New Content</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro-bowl')" class="modal-input w-full">
-                    <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
-                    <select id="admin-add-type" class="modal-input w-full">
-                        <option value="games">Games</option>
-                        <option value="media">Media</option>
-                        <option value="browsers">Browsers</option>
-                    </select>
-                    <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
-                    <input type="text" id="admin-add-img" placeholder="Cover Image (optional)" class="modal-input w-full">
-                    <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
-                </div>
-                <button class="btn-primary mt-4" onclick="adminSubmitCatalog()">Add to Catalog</button>
+                <div class="text-gray-500 italic p-8"><i class="fas fa-spinner fa-spin mr-2"></i>Initializing Admin...</div>
             </div>
         </div>
     </div>
@@ -886,7 +878,23 @@
                             const currentBadge = document.getElementById('role-badge');
                             const badgeHTML = currentBadge ? currentBadge.outerHTML : '<span id="role-badge" class="text-[9px] bg-gray-700 px-1.5 py-0.5 rounded tracking-widest hidden ml-2"></span>';
                             document.getElementById('username-display').innerHTML = `${data.username} ${badgeHTML}`;
+                            const profilePic = document.getElementById('header-profile-pic');
                             if (profilePic && data.avatarUrl) profilePic.src = data.avatarUrl;
+
+                            const statusDot = document.querySelector('.online-dot');
+                            if(statusDot) {
+                                statusDot.style.background = data.status === 'online' ? '#10b981' : (data.status === 'away' ? '#f59e0b' : '#ef4444');
+                            }
+
+                            // Sync Local Profile System
+                            const currentProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                            const newProfile = {
+                                ...currentProfile,
+                                username: data.username,
+                                profilePic: data.avatarUrl || currentProfile.profilePic,
+                                bio: data.bio || currentProfile.bio
+                            };
+                            localStorage.setItem('userProfile', JSON.stringify(newProfile));
                         }
                     });
 
@@ -907,6 +915,7 @@
                         }
                     });
                     if(db) setupListeners();
+                    updateUserStatus('online');
                 } else {
                     document.getElementById('username-display').textContent = 'Guest';
                     const profilePic = document.getElementById('header-profile-pic');
@@ -921,6 +930,18 @@
             });
         } catch(e) { console.error(e); }
 
+        function togglePasswordVisibility() {
+            const input = document.getElementById('auth-password');
+            const icon = document.getElementById('password-toggle-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
         async function handleAuth() {
             const uInput = document.getElementById('auth-username').value.trim();
             const pInput = document.getElementById('auth-password').value;
@@ -931,8 +952,10 @@
             
             try {
                 await auth.signInWithEmailAndPassword(email, pInput);
+                errDiv.style.display = 'none';
             } catch(e) {
-                if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+                // If the error suggests the user might not exist, try to register
+                if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
                     try {
                         const cred = await auth.createUserWithEmailAndPassword(email, pInput);
                         await cred.user.updateProfile({ displayName: uInput });
@@ -945,13 +968,24 @@
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
+                        
+                        // Seed owner role if credentials match
                         if (uInput === 'James' && pInput === 'BrownTown45!') {
                             try {
-                                if(db) await db.collection('roles').doc(cred.user.uid).set({ role: 'owner', updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: 'system' });
+                                if(db) await db.collection('roles').doc(cred.user.uid).set({ 
+                                    role: 'owner', 
+                                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(), 
+                                    updatedBy: 'system' 
+                                });
                             } catch(roleE) {}
                         }
                     } catch(regE) {
-                        errDiv.textContent = regE.message;
+                        // If registration fails because email exists, it means the INITIAL login was just a wrong password
+                        if (regE.code === 'auth/email-already-in-use') {
+                            errDiv.textContent = "Incorrect password for this username.";
+                        } else {
+                            errDiv.textContent = regE.message;
+                        }
                         errDiv.style.display = 'block';
                     }
                 } else {
@@ -1062,11 +1096,32 @@
                         const div = document.createElement('div');
                         div.className = 'bg-white/5 p-3 rounded cursor-pointer hover:bg-white/10 transition flex items-center gap-3 border border-white/5';
                         div.onclick = () => openChat(doc.id, displayName);
-                        div.innerHTML = `<div class="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0 bg-cover" style="background-image:url(${displayAvatar})"></div>
+                        
+                        div.innerHTML = `
+                            <div class="relative w-10 h-10 flex-shrink-0">
+                                <div class="w-10 h-10 bg-gray-700 rounded-full bg-cover" style="background-image:url(${displayAvatar})"></div>
+                                ${data.isDirectMessage ? `<div id="status-dot-${doc.id}" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-black bg-gray-500"></div>` : ''}
+                            </div>
                             <div class="flex-1 overflow-hidden">
                                 <div class="font-bold text-sm truncate text-white">${displayName}</div>
                                 <div class="text-xs text-gray-400 text-ellipsis whitespace-nowrap overflow-hidden">${data.lastMessagePreview || 'New chat...'}</div>
-                            </div>`;
+                            </div>
+                        `;
+
+                        // Add live status listener for DMs
+                        if (data.isDirectMessage) {
+                            const otherUserId = data.memberIds.find(id => id !== currentUser.uid);
+                            if (otherUserId) {
+                                db.collection('users').doc(otherUserId).onSnapshot(uDoc => {
+                                    const dot = document.getElementById(`status-dot-${doc.id}`);
+                                    if (dot && uDoc.exists) {
+                                        const uData = uDoc.data();
+                                        dot.style.background = uData.status === 'online' ? '#10b981' : (uData.status === 'away' ? '#f59e0b' : '#ef4444');
+                                    }
+                                });
+                            }
+                        }
+
                         chatsList.appendChild(div);
                     });
                 });
@@ -1199,7 +1254,64 @@
         }
 
 
-        function promptCreateGroup() { showToast('Groups comming soon!'); }
+        function promptCreateGroup() {
+            const content = document.getElementById('social-content');
+            content.innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-2"><i class="fas fa-chevron-left"></i></button>
+                    <div class="font-bold">Create Group Chat</div>
+                </div>
+                <div class="mb-4">
+                    <input type="text" id="group-name" placeholder="Group Name" class="modal-input w-full mb-3">
+                    <div class="text-xs font-bold text-gray-400 mb-2">Select Members:</div>
+                    <div id="group-member-list" class="space-y-1 max-h-48 overflow-y-auto mb-4"></div>
+                    <button class="btn-primary w-full" onclick="executeCreateGroup()">Create Group</button>
+                </div>
+            `;
+
+            db.collection('users').doc(currentUser.uid).collection('friends').get().then(async friendsSnap => {
+                const list = document.getElementById('group-member-list');
+                for (const fDoc of friendsSnap.docs) {
+                    const uDoc = await db.collection('users').doc(fDoc.id).get();
+                    if (uDoc.exists) {
+                        const u = uDoc.data();
+                        list.innerHTML += `
+                            <label class="flex items-center justify-between bg-white/5 p-2 rounded cursor-pointer hover:bg-white/10">
+                                <div class="flex items-center gap-3">
+                                    <img src="${u.avatarUrl}" class="w-6 h-6 rounded-full">
+                                    <span class="text-sm">${u.username}</span>
+                                </div>
+                                <input type="checkbox" name="group-members" value="${uDoc.id}" class="rounded bg-black border-white/20">
+                            </label>
+                        `;
+                    }
+                }
+            });
+        }
+
+        async function executeCreateGroup() {
+            const name = document.getElementById('group-name').value.trim();
+            const checkboxes = document.querySelectorAll('input[name="group-members"]:checked');
+            const memberIds = Array.from(checkboxes).map(c => c.value);
+            memberIds.push(currentUser.uid);
+            
+            if (!name || memberIds.length < 2) { showToast('Enter a name and pick at least one friend!'); return; }
+
+            const convo = {
+                name: name,
+                memberIds: memberIds,
+                isDirectMessage: false,
+                lastMessagePreview: 'Group created!',
+                lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                names: { [currentUser.uid]: currentUser.displayName },
+                avatars: { [currentUser.uid]: currentUser.photoURL }
+            };
+
+            await db.collection('conversations').add(convo);
+            showToast('Group Created!');
+            loadFriendsList();
+        }
 
         function openChat(conversationId, name) {
             const content = document.getElementById('social-content');
@@ -1208,12 +1320,45 @@
                     <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-2"><i class="fas fa-chevron-left"></i></button>
                     <div class="font-bold truncate">${name}</div>
                 </div>
-                <div id="chat-messages" class="flex-1 overflow-y-auto mb-4 space-y-3 pr-2" style="max-height: 60vh;"></div>
-                <div class="flex gap-2">
-                    <input type="text" id="chat-input" class="modal-input flex-1 py-2 px-3 text-sm" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChatMessage('${conversationId}')">
+                <div id="chat-messages" class="flex-1 overflow-y-auto mb-2 space-y-3 pr-2" style="max-height: 60vh;"></div>
+                <div id="typing-status" class="text-[10px] text-gray-500 italic mb-2 h-4"></div>
+                <div id="blocked-status" class="hidden bg-red-900/40 border border-red-500/50 text-red-200 p-2 rounded mb-2 text-xs text-center font-bold">
+                    <i class="fas fa-ban mr-2"></i>You cannot send messages to this chat.
+                </div>
+                <div id="chat-input-container" class="flex gap-2">
+                    <input type="text" id="chat-input" class="modal-input flex-1 py-2 px-3 text-sm" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChatMessage('${conversationId}')" oninput="handleTyping('${conversationId}')">
                     <button class="bg-white/10 hover:bg-white/20 transition px-4 rounded text-gray-300 font-bold" onclick="sendChatMessage('${conversationId}')"><i class="fas fa-paper-plane"></i></button>
                 </div>
             `;
+
+            // Listen for Blocked Status
+            db.collection('conversations').doc(conversationId).get().then(snap => {
+                const data = snap.data();
+                if (data && data.isDirectMessage) {
+                    const otherUserId = data.memberIds.find(id => id !== currentUser.uid);
+                    if (otherUserId) {
+                        db.collection('users').doc(currentUser.uid).collection('blocked').doc(otherUserId).onSnapshot(s => { if (s.exists) showBlocked(true); });
+                        db.collection('users').doc(otherUserId).collection('blocked').doc(currentUser.uid).onSnapshot(s => { if (s.exists) showBlocked(true); });
+                    }
+                }
+            });
+
+            // Presence & Typing logic
+            db.collection('conversations').doc(conversationId).onSnapshot(snap => {
+                const data = snap.data();
+                if(!data) return;
+                const typingObj = data.typing || {};
+                const now = Date.now();
+                const typingNames = [];
+                for (const [uid, timestamp] of Object.entries(typingObj)) {
+                    if (uid !== currentUser.uid && (now - timestamp) < 3000) {
+                        typingNames.push(data.names ? data.names[uid] : 'Someone');
+                    }
+                }
+                const statusDiv = document.getElementById('typing-status');
+                if(statusDiv) statusDiv.textContent = typingNames.length > 0 ? `${typingNames.join(', ')} is typing...` : '';
+            });
+
             db.collection(`conversations/${conversationId}/messages`).orderBy('createdAt', 'asc').limit(50)
                 .onSnapshot(snap => {
                     const msgs = document.getElementById('chat-messages');
@@ -1224,15 +1369,38 @@
                         const isMine = data.senderId === currentUser.uid;
                         html += `
                             <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
-                                <div class="px-3 py-2 rounded-2xl max-w-[80%] text-sm ${isMine ? 'bg-gray-600 text-white rounded-br-none' : 'bg-white/10 text-gray-200 rounded-bl-none'}">
+                                <div class="max-w-[80%] ${isMine ? 'bg-blue-600 text-white rounded-l-lg rounded-tr-lg' : 'bg-white/10 text-gray-200 rounded-r-lg rounded-tl-lg'} p-2 text-xs">
+                                    ${!isMine && name !== 'Group Chat' ? `<div class="font-bold text-[9px] text-blue-400 mb-1">${data.senderName || 'User'}</div>` : ''}
                                     ${data.text}
                                 </div>
                             </div>
                         `;
                     });
                     msgs.innerHTML = html;
-                    msgs.scrollTo(0, msgs.scrollHeight);
+                    msgs.scrollTop = msgs.scrollHeight;
                 });
+        }
+
+        function showBlocked(blocked) {
+            const input = document.getElementById('chat-input-container');
+            const banner = document.getElementById('blocked-status');
+            if (blocked) {
+                input.classList.add('hidden');
+                banner.classList.remove('hidden');
+            }
+        }
+
+        let typingTimeout = null;
+        function handleTyping(convoId) {
+            if (typingTimeout) clearTimeout(typingTimeout);
+            db.collection('conversations').doc(convoId).set({
+                typing: { [currentUser.uid]: Date.now() }
+            }, { merge: true });
+            typingTimeout = setTimeout(() => {
+                db.collection('conversations').doc(convoId).set({
+                    typing: { [currentUser.uid]: 0 }
+                }, { merge: true });
+            }, 3000);
         }
 
         function sendChatMessage(conversationId) {
@@ -1243,6 +1411,7 @@
             
             db.collection(`conversations/${conversationId}/messages`).add({
                 senderId: currentUser.uid,
+                senderName: currentUser.displayName,
                 text: txt, type: 'text', imageUrl: '', replyToMessageId: '',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(), deleted: false
             });
@@ -1252,6 +1421,143 @@
                 lastMessageSenderId: currentUser.uid,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+        }
+
+        async function loadAdminCatalog() {
+            if(userRole !== 'owner' && userRole !== 'mod') return;
+            const content = document.getElementById('admin-content');
+            content.innerHTML = `
+                <div class="mb-8 p-4 bg-white/5 rounded border border-white/10">
+                    <h3 class="text-xl font-bold mb-4 text-gray-300">Add / Edit Content</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro')" class="modal-input w-full">
+                        <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
+                        <select id="admin-add-type" class="modal-input w-full"><option value="games">Games</option><option value="media">Media</option><option value="browsers">Browsers</option></select>
+                        <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
+                        <input type="text" id="admin-add-img" placeholder="Cover Image URL (opt)" class="modal-input w-full">
+                        <input type="text" id="admin-add-icon" placeholder="Icon HTML (e.g. <i class='fas fa-star'></i>)" class="modal-input w-full">
+                        <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button id="admin-submit-btn" class="btn-primary" onclick="adminSubmitCatalog()">Add to Catalog</button>
+                        <button id="admin-cancel-edit" class="btn-secondary hidden" onclick="cancelAdminEdit()">Cancel Edit</button>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center text-xs text-gray-500">
+                        <span>Built-in games can be "copied" to cloud for editing.</span>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mb-4 text-gray-300">Manage Catalog</h3>
+                <div id="admin-catalog-list" class="space-y-3">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Loading Catalog...
+                </div>
+            `;
+
+            try {
+                const list = document.getElementById('admin-catalog-list');
+                const [g, m, b] = await Promise.all([
+                    db.collection('games').get(),
+                    db.collection('media').get(),
+                    db.collection('browsers').get()
+                ]);
+                
+                const cloudItems = [
+                    ...g.docs.map(d => ({...d.data(), type:'games', isCloud: true})),
+                    ...m.docs.map(d => ({...d.data(), type:'media', isCloud: true})),
+                    ...b.docs.map(d => ({...d.data(), type:'browsers', isCloud: true}))
+                ];
+
+                const merged = {};
+                // First add all hardcoded data as base
+                rawGameData.forEach(item => {
+                    merged[item.id] = { ...item, isCloud: false };
+                });
+                // Overwrite with cloud data if exists
+                cloudItems.forEach(item => {
+                    merged[item.id] = { ...item, isCloud: true };
+                });
+
+                const displayItems = Object.values(merged).sort((x,y) => x.title.localeCompare(y.title));
+                
+                let html = '';
+                displayItems.forEach(item => {
+                    const tag = item.isCloud ? '<span class="text-[8px] bg-blue-600/30 text-blue-400 px-1.5 py-0.5 rounded ml-2">CLOUD</span>' : '<span class="text-[8px] bg-gray-600/30 text-gray-400 px-1.5 py-0.5 rounded ml-2">LOCAL</span>';
+                    
+                    const actionBtns = `
+                        <button class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 px-3 py-1 rounded text-xs font-bold" onclick="prepareAdminEdit('${item.type || 'games'}', '${item.id}')"><i class="fas fa-edit mr-1"></i>Edit</button>
+                        ${item.isCloud ? `<button class="bg-red-600/20 hover:bg-red-600/40 text-red-300 px-3 py-1 rounded text-xs font-bold ml-1" onclick="adminDeleteGame('${item.type}', '${item.id}', '${item.title}')"><i class="fas fa-trash"></i></button>` : ''}
+                    `;
+
+                    html += `
+                        <div class="bg-white/5 p-3 rounded flex justify-between items-center border border-white/10 hover:bg-white/10 transition">
+                            <div class="flex items-center gap-4 overflow-hidden">
+                                <div class="w-12 h-12 rounded bg-cover flex-shrink-0 bg-gray-900 flex items-center justify-center overflow-hidden" style="background-image:url(${item.img || item.bg || ''})">
+                                    ${(!item.img && !item.bg) ? item.icon : ''}
+                                </div>
+                                <div class="overflow-hidden">
+                                    <div class="font-bold truncate text-white items-center flex">${item.title} ${tag}</div>
+                                    <div class="text-[10px] text-gray-500 uppercase font-black">${item.type} | ID: ${item.id}</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 flex-shrink-0">${actionBtns}</div>
+                        </div>
+                    `;
+                });
+                list.innerHTML = html;
+            } catch(e) { console.error(e); }
+        }
+
+        async function prepareAdminEdit(type, id) {
+            try {
+                let data = null;
+                // Try Firestore first
+                const doc = await db.collection(type).doc(id).get();
+                if(doc.exists) {
+                    data = doc.data();
+                } else {
+                    // Fallback to local raw data
+                    data = rawGameData.find(g => g.id === id);
+                }
+
+                if(!data) return;
+                
+                document.getElementById('admin-add-id').value = data.id;
+                document.getElementById('admin-add-id').disabled = true;
+                document.getElementById('admin-add-title').value = data.title;
+                document.getElementById('admin-add-type').value = data.type || type;
+                document.getElementById('admin-add-type').disabled = true;
+                document.getElementById('admin-add-url').value = data.url;
+                document.getElementById('admin-add-img').value = data.img || data.bg || '';
+                document.getElementById('admin-add-icon').value = data.icon || '';
+                document.getElementById('admin-add-desc').value = data.desc || '';
+                
+                document.getElementById('admin-submit-btn').textContent = "Save Changes";
+                document.getElementById('admin-cancel-edit').classList.remove('hidden');
+                document.querySelector('.modal-content').scrollTo({ top: 0, behavior: 'smooth' });
+            } catch(e) { showToast(e.message); }
+        }
+
+        function cancelAdminEdit() {
+            document.getElementById('admin-add-id').value = '';
+            document.getElementById('admin-add-id').disabled = false;
+            document.getElementById('admin-add-title').value = '';
+            document.getElementById('admin-add-type').disabled = false;
+            document.getElementById('admin-add-url').value = '';
+            document.getElementById('admin-add-img').value = '';
+            document.getElementById('admin-add-icon').value = '';
+            document.getElementById('admin-add-desc').value = '';
+            document.getElementById('admin-submit-btn').textContent = "Add to Catalog";
+            document.getElementById('admin-cancel-edit').classList.add('hidden');
+        }
+
+        async function adminDeleteGame(type, id, title) {
+            if(!confirm(`Are you sure you want to delete "${title}" permanently?`)) return;
+            try {
+                await db.collection(type).doc(id).delete();
+                showToast(`Deleted ${title}`);
+                dynamicGamesLoaded = false;
+                fetchDynamicCatalog();
+                loadAdminCatalog();
+            } catch(e) { showToast(e.message); }
         }
 
         async function loadAdminUsers() {
@@ -1278,7 +1584,11 @@
                             <div class="flex items-center gap-3">
                                 <img src="${u.user.avatarUrl}" class="w-8 h-8 rounded-full bg-black">
                                 <div>
-                                    <div class="font-bold flex items-center gap-2">${u.user.username} <span class="bg-gray-700 text-[9px] px-1.5 py-0.5 rounded">${u.role}</span></div>
+                                    <div class="font-bold flex items-center gap-2">
+                                        <div class="w-2 h-2 rounded-full" style="background: ${u.user.status === 'online' ? '#10b981' : (u.user.status === 'away' ? '#f59e0b' : '#ef4444')}"></div>
+                                        ${u.user.username} 
+                                        <span class="bg-gray-700 text-[9px] px-1.5 py-0.5 rounded">${u.role}</span>
+                                    </div>
                                     <div class="text-xs text-gray-400 max-w-xs truncate">${u.user.bio || 'No bio'}</div>
                                 </div>
                             </div>
@@ -1302,23 +1612,11 @@
         }
 
         function switchAdminTab(tab) {
-            const content = document.getElementById('admin-content');
             const btns = document.querySelectorAll('#admin-modal .flex.gap-4 button');
             btns.forEach(b => { b.className = 'text-gray-400 font-bold hover:text-white px-4 py-2 rounded'; });
             if (tab === 'catalog') {
                 btns[0].className = 'text-white font-bold bg-white/10 px-4 py-2 rounded shadow-inner';
-                content.innerHTML = `
-                <h3 class="text-xl font-bold mb-4 text-gray-300">Add New Content</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro')" class="modal-input w-full">
-                    <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
-                    <select id="admin-add-type" class="modal-input w-full"><option value="games">Games</option><option value="media">Media</option><option value="browsers">Browsers</option></select>
-                    <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
-                    <input type="text" id="admin-add-img" placeholder="Cover Image URL (opt)" class="modal-input w-full">
-                    <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
-                </div>
-                <button class="btn-primary mt-4" onclick="adminSubmitCatalog()">Add to Catalog</button>
-                `;
+                loadAdminCatalog();
             } else {
                 btns[1].className = 'text-white font-bold bg-white/10 px-4 py-2 rounded shadow-inner';
                 loadAdminUsers();
@@ -1335,15 +1633,18 @@
             const title = document.getElementById('admin-add-title').value.trim();
             const url = document.getElementById('admin-add-url').value.trim();
             const img = document.getElementById('admin-add-img').value.trim();
+            const icon = document.getElementById('admin-add-icon').value.trim();
             const desc = document.getElementById('admin-add-desc').value.trim();
             if(!docId || !title || !url) { showToast('ID, Title, and URL are required'); btn.textContent = originalText; return; }
             try {
                 await db.collection(type).doc(docId).set({
-                    id: docId, title, url, img, desc: desc || '', addedBy: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                showToast(`${title} added cleanly!`);
+                    id: docId, title, url, img, icon, desc: desc || '', addedBy: currentUser.uid, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                showToast(`${title} saved!`);
+                cancelAdminEdit();
                 dynamicGamesLoaded = false;
                 fetchDynamicCatalog();
+                loadAdminCatalog();
             } catch(e) { showToast(`Error: ${e.message}`); }
             btn.textContent = originalText;
         }
@@ -1362,19 +1663,19 @@
         const rawGameData = [
             { id:'store', type:'games', title:'PlayStation Store', icon:'<i class="fas fa-shopping-bag text-5xl text-blue-400"></i>', url:'https://forms.gle/DxkgjsxPiQ5VHnap9', bg:'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?q=80&w=1920', desc:'Request games through this Google Form.' },
             { id:'explore', type:'games', title:'Explore', icon:'<i class="fas fa-rocket text-5xl text-white"></i>', url:'https://blog.playstation.com/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Discover news, trailers, and community highlights across PS5.' },
-            { id:'baby-sniper', type:'games', title:'Baby Sniper In Vietnam', url:'https://drank-was-here.b-cdn.net/games/Baby-Sniper-In-Vietnam/index.html', desc:'A surreal sniper shooter starring young Minh in wartime missions.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BðŸ…±ï¸' },
-            { id:'bacon-may-die', type:'games', title:'Bacon May Die', url:'https://s.gameszur.com/gamehub/bacon-may-die/', desc:'Punch, shoot, and survive waves as a furious pig brawler.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BaðŸ…±ï¸' },
-            { id:'baseball-bros', type:'games', title:'Baseball Bros', url:'https://nealfun.app/game/baseball-bros/', desc:'Fast arcade baseball with huge swings, steals, and chaos.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BasðŸ…±ï¸' },
-            { id:'basket-bros', type:'games', title:'Basket Bros', url:'https://basketbros-unblocked.github.io/a7/basket-bros/', desc:'Arcade one-on-one basketball packed with dunks and blocks.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BatðŸ…±ï¸' },
-            { id:'bitlife', type:'games', title:'BitLife', url:'https://theunblock3dlabs.github.io/sourced/play/bitlife/', desc:'A life simulator where every choice shapes your character\'s story.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BiðŸ…±ï¸' },
-            { id:'bloons-td5', type:'games', title:'Bloons TD5', url:'https://mgg658.github.io/zbtd5.html', desc:'Build monkey towers and pop massive balloon rushes.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BlðŸ…±ï¸' },
-            { id:'bottle-flip-3d', type:'games', title:'Bottle Flip 3D', url:'https://55gms.com/misc/BottleFlip3D/index.html', desc:'Land trick flips across moving rooms and obstacle courses.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BoðŸ…±ï¸' },
-            { id:'brawl-stars-sim', type:'games', title:'Brawl Stars Sim', url:'https://millanirbytes.frhumannet.com/cdn/games/brawl-simulator-3d/', desc:'A fan-made arena fighter with Brawl Stars-style battles.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BrðŸ…±ï¸' },
-            { id:'brotato', type:'games', title:'Brotato', url:'https://learning.trogiang.vn/games/brotato2/index.html', desc:'Fight alien swarms as a weapon-stacking potato survivor.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BroðŸ…±ï¸' },
-            { id:'burrito-bison', type:'games', title:'Burrito Bison Launcha Libre', url:'https://html-classic.itch.zone/html/7437859/index.html', desc:'Launch, bounce, and smash through gummy armies for distance.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BuðŸ…±ï¸' },
-            { id:'cloverpit', type:'games', title:'Cloverpit', url:'https://cdn.jsdelivr.net/gh/web-ports/clover-pit@main/', desc:'A roguelite slot-machine nightmare where every spin pays debt.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'CðŸ†' },
-            { id:'cod-zombies', type:'games', title:'Cod Zombies', url:'https://nzp.gay/', desc:'A browser zombie survival shooter inspired by COD rounds.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'CoðŸ†' },
-            { id:'cookie-clicker', type:'games', title:'Cookie Clicker', url:'https://orcatech2711.github.io/nano/games/cookieclicker/index.html', desc:'Bake absurd amounts of cookies with endless upgrades.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'CooðŸ†' },
+            { id:'baby-sniper', type:'games', title:'Baby Sniper In Vietnam', url:'https://drank-was-here.b-cdn.net/games/Baby-Sniper-In-Vietnam/index.html', desc:'A surreal sniper shooter starring young Minh in wartime missions.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BðŸ…±ï¸ ' },
+            { id:'bacon-may-die', type:'games', title:'Bacon May Die', url:'https://s.gameszur.com/gamehub/bacon-may-die/', desc:'Punch, shoot, and survive waves as a furious pig brawler.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BaðŸ…±ï¸ ' },
+            { id:'baseball-bros', type:'games', title:'Baseball Bros', url:'https://nealfun.app/game/baseball-bros/', desc:'Fast arcade baseball with huge swings, steals, and chaos.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BasðŸ…±ï¸ ' },
+            { id:'basket-bros', type:'games', title:'Basket Bros', url:'https://basketbros-unblocked.github.io/a7/basket-bros/', desc:'Arcade one-on-one basketball packed with dunks and blocks.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BatðŸ…±ï¸ ' },
+            { id:'bitlife', type:'games', title:'BitLife', url:'https://theunblock3dlabs.github.io/sourced/play/bitlife/', desc:'A life simulator where every choice shapes your character\'s story.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BiðŸ…±ï¸ ' },
+            { id:'bloons-td5', type:'games', title:'Bloons TD5', url:'https://mgg658.github.io/zbtd5.html', desc:'Build monkey towers and pop massive balloon rushes.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BlðŸ…±ï¸ ' },
+            { id:'bottle-flip-3d', type:'games', title:'Bottle Flip 3D', url:'https://55gms.com/misc/BottleFlip3D/index.html', desc:'Land trick flips across moving rooms and obstacle courses.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BoðŸ…±ï¸ ' },
+            { id:'brawl-stars-sim', type:'games', title:'Brawl Stars Sim', url:'https://millanirbytes.frhumannet.com/cdn/games/brawl-simulator-3d/', desc:'A fan-made arena fighter with Brawl Stars-style battles.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BrðŸ…±ï¸ ' },
+            { id:'brotato', type:'games', title:'Brotato', url:'https://learning.trogiang.vn/games/brotato2/index.html', desc:'Fight alien swarms as a weapon-stacking potato survivor.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BroðŸ…±ï¸ ' },
+            { id:'burrito-bison', type:'games', title:'Burrito Bison Launcha Libre', url:'https://html-classic.itch.zone/html/7437859/index.html', desc:'Launch, bounce, and smash through gummy armies for distance.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'BuðŸ…±ï¸ ' },
+            { id:'cloverpit', type:'games', title:'Cloverpit', url:'https://cdn.jsdelivr.net/gh/web-ports/clover-pit@main/', desc:'A roguelite slot-machine nightmare where every spin pays debt.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'CðŸ †' },
+            { id:'cod-zombies', type:'games', title:'Cod Zombies', url:'https://nzp.gay/', desc:'A browser zombie survival shooter inspired by COD rounds.', bg:'https://imgcdn.dev/i/YRKfut', placeholder:'CoðŸ †' },
+            { id:'cookie-clicker', type:'games', title:'Cookie Clicker', url:'https://orcatech2711.github.io/nano/games/cookieclicker/index.html', desc:'Bake absurd amounts of cookies with endless upgrades.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'CooðŸ †' },
             { id:'deadshot', type:'games', title:'DeadShot', url:'https://deadshot.io/', desc:'A competitive online FPS built around aim and movement.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'DðŸŽ¯' },
             { id:'drive-mad', type:'games', title:'Drive Mad', url:'https://cdn.jsdelivr.net/gh/genizy/dmad-poki@49b5ab6b987f5f3be58f9dae59c92e8fc1aab9b0/', desc:'Balance a shaky vehicle through brutal physics stunt tracks.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'DrðŸŽ¯' },
             { id:'down-town-james-brown', type:'games', title:'Down Town James Brown', url:'https://cdn.jsdelivr.net/gh/bubbls/ugs-singlefile@main/AASINGLEFILE.html', desc:'A weird, fast arcade experiment driven by pure reactions.', bg:'https://img.icons8.com/color/1200/controller.jpg', placeholder:'DoðŸŽ¯' },
@@ -1388,34 +1689,34 @@
             { id:'gladihoppers', type:'games', title:'Gladihoppers', url:'https://classroomjq.github.io/gladihoppers/', desc:'A funny 2D physics gladiator game with hopping arena fights.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'GlaðŸŽ®' },
             { id:'granny', type:'games', title:'Granny', url:'https://cdn.jsdelivr.net/gh/gru6nny/ohd@main/sdk.js', desc:'Sneak through a locked house and escape before Granny catches you.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'GraðŸŽ®' },
             { id:'iron-snout', type:'games', title:'Iron Snout', url:'https://classroom8.github.io/iron-snout/', desc:'A nonstop brawler where one pig counters endless wolves.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'IðŸŽ²' },
-            { id:'karate-bros', type:'games', title:'Karate Bros', url:'https://karatebros.io/', desc:'A quick martial arts brawler built around timing and combos.', bg:'https://geodashlite.io/data/image/game/karate-bros.jpg', placeholder:'KðŸ€' },
-            { id:'kart-bros', type:'games', title:'Kart Bros', url:'https://kart-bros.io/kart-bros.embed', desc:'Kart racing chaos with drifts, shortcuts, and cartoon collisions.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'KarðŸ€' },
+            { id:'karate-bros', type:'games', title:'Karate Bros', url:'https://karatebros.io/', desc:'A quick martial arts brawler built around timing and combos.', bg:'https://geodashlite.io/data/image/game/karate-bros.jpg', placeholder:'KðŸ €' },
+            { id:'kart-bros', type:'games', title:'Kart Bros', url:'https://kart-bros.io/kart-bros.embed', desc:'Kart racing chaos with drifts, shortcuts, and cartoon collisions.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'KarðŸ €' },
             { id:'melon-sandbox', type:'games', title:'Melon Sandbox', url:'https://playhop.com/dist-app/260481?header=no&skip-guard=1&utm_source=parent_window_api&utm_medium=playgama&flags={%22adv_types_disabled%22:16}', desc:'A ragdoll sandbox for absurd experiments, traps, and explosions.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'MðŸŽª' },
-            { id:'nefarius', type:'games', title:'Nefarius', url:'https://isolated.ungrounded.net/alternate/5859000/5859157_alternate_271251_r3.zip/?NewgroundsAPI_PublisherID=1&NewgroundsAPI_SandboxID=69d84dd11198e&NewgroundsAPI_SessionID=&NewgroundsAPI_UserName=%26lt%3Bdeleted%26gt%3B&NewgroundsAPI_UserID=0&ng_username=%26lt%3Bdeleted%26gt%3B', desc:'A pixel-art wizard shooter about blasting slimes and reclaiming magic.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'NðŸ´' },
+            { id:'nefarius', type:'games', title:'Nefarius', url:'https://isolated.ungrounded.net/alternate/5859000/5859157_alternate_271251_r3.zip/?NewgroundsAPI_PublisherID=1&NewgroundsAPI_SandboxID=69d84dd11198e&NewgroundsAPI_SessionID=&NewgroundsAPI_UserName=%26lt%3Bdeleted%26gt%3B&NewgroundsAPI_UserID=0&ng_username=%26lt%3Bdeleted%26gt%3B', desc:'A pixel-art wizard shooter about blasting slimes and reclaiming magic.', bg:'https://imgcdn.dev/i/YRKRqw', placeholder:'NðŸ ´' },
             { id:'retro-bowl', type:'games', title:'Retro-Bowl', url:'https://cdn.jsdelivr.net/gh/genizy/assets@main/retro-bowl/', desc:'Retro football management mixed with addictive on-field drives.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'RðŸš€' },
             { id:'rocket-league', type:'games', title:'Rocket League', url:'https://rocketgoal.io/', desc:'Rocket-powered car soccer with boosts, aerials, and sharp rotations.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'RoðŸš€' },
             { id:'rouge-souls-1', type:'games', title:'Rouge Souls 1', url:'https://script.google.com/macros/s/AKfycbz6wsJGGaRbc_voawFifLikzf38X3m3bFN_apBYsw3WZlzCpRwcCK3Q6Q4kAWsZ10BH7Q/exec', desc:'A side-scrolling rogue action run full of loot and danger.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'RouðŸš€' },
             { id:'rouge-souls-2', type:'games', title:'Rouge Souls 2', url:'https://script.google.com/macros/s/AKfycbya2jmrLYgSkmRh3LXqH0bdWSvxuUbyQikOxtPU9v0A8WUFAeatt7Fwy0AOvzeHJwhT/exec', desc:'A tougher sequel with faster combat and bigger loot runs.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'Rou2ðŸš€' },
-            { id:'scritchy-scratchy', type:'games', title:'Scritchy Scratchy', url:'https://itch.io/embed-upload/16388344?color=333333', desc:'A scratch-card incremental game built around satisfying reveals.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SðŸ…' },
-            { id:'shell-shockers', type:'games', title:'Shell Shockers', url:'https://d.clever.com.drmarcells.com/equations/shellshock/', desc:'An online egg shooter with guns, classes, and arena firefights.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ShðŸ…' },
-            { id:'slime-rancher', type:'games', title:'Slime Rancher', url:'https://cdn.jsdelivr.net/gh/web-ports/slime-ranchers@main/', desc:'Collect bouncing slimes, feed them, and grow a strange ranch.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SlðŸ…' },
-            { id:'slither-io', type:'games', title:'Slither.IO', url:'https://strongdog.com/real-slither.io/index.html', desc:'Grow your snake, trap rivals, and dominate the arena.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SliðŸ…' },
-            { id:'snow-rider-3d', type:'games', title:'Snow-Rider3D', url:'https://itsvijaysingh.github.io/Snow-Rider3D/', desc:'Race downhill on a sled through trees, ramps, and hazards.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SnðŸ…' },
-            { id:'snowball-io', type:'games', title:'Snowball.IO', url:'https://snowball-io.io/', desc:'Roll giant snowballs and knock rivals off the platform.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SnoðŸ…' },
-            { id:'soccer-bros', type:'games', title:'Soccer Bros', url:'https://soccerbros.gg/', desc:'Arcade soccer with volleys, tackles, and over-the-top matches.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SocðŸ…' },
-            { id:'subway-surfers', type:'games', title:'Subway Surfers', url:'https://pizzaedition.win/assets/allgames/subwaysurfers/index.html', desc:'Sprint through train yards, dodge hazards, and chase scores.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SuðŸ…' },
-            { id:'survivor-io', type:'games', title:'Survivor.IO', url:'https://html5.gamedistribution.com/rvvASMiM/f1c451e586c04b4c8cba01b0c50d9090/index.html?gd_sdk_referrer_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_api_as3_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fas3%2Flatest.swf&mp_api_as3_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-as%2F&mp_api_id=5418&mp_api_js_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fjs%2Flatest.js&mp_api_js_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-js%2F&mp_assets=https%3A%2F%2Fs2.minijuegosgratis.com%2F&mp_embed=0&mp_game_id=243226&mp_game_uid=survivor-io&mp_game_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_int=1&mp_locale=en_US&mp_player_type=IFRAME&mp_site_https_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_site_name=miniplay.com&mp_site_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_timezone=America%2FChicago&mp_view_type=&mini_signature=5c1dd14bd056dfdc48b7d97ef3f2d3c2&xdm_e=https%3A%2F%2Fwww.miniplay.com&xdm_c=default1415&xdm_p=1&gd_zone_config=eyJwYXJlbnRVUkwiOiJodHRwczovL3d3dy5taW5pcGxheS5jb20vZ2FtZS9zdXJ2aXZvci1pbyIsInBhcmVudERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsInRvcERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsImhhc0ltcHJlc3Npb24iOmZhbHNlLCJsb2FkZXJFbmFibGVkIjp0cnVlLCJob3N0IjoiaHRtbDUuZ2FtZWRpc3RyaWJ1dGlvbi5jb20iLCJ2ZXJzaW9uIjoiMS41LjE4In0%253D', desc:'Mow down monster hordes with evolving auto-fire weapons.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SurðŸ…' },
-            { id:'swords-and-souls', type:'games', title:'Swords And Souls', url:'https://script.google.com/macros/s/AKfycbwpk3_eQ-NLDyEjcqWn-txMpuRmeF2pgck1awpz9tkMNL79tQ_hYiqC3hKdWhXXXK1f1g/exec', desc:'Train your hero in minigames, then battle fantasy monsters.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SwðŸ…' },
-            { id:'terraria', type:'games', title:'Terraria', url:'https://terrariamods-scratch.github.io/TerrariaStamped/embed/', desc:'Dig, build, craft, and fight through a massive 2D world.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TðŸ†' },
-            { id:'the-binding-of-isaac-demo', type:'games', title:'The Binding of Isaac: Demo', url:'https://uploads.ungrounded.net/ruffle_wrapper/ruffleembed.html?v=1.2.3&browsermode=default&props=%7B%22ruffle%22%3A%22%2Fruffle_wrapper%2Flib%2Fruffle.js%3F1775708382%22%2C%22public_path%22%3A%22%2Fruffle_wrapper%2Flib%2F%22%2C%22swf%22%3A%22https%3A%2F%2Fuploads.ungrounded.net%2F581000%2F581168_Isaac_demo_Secure.swf%3F1318109425%22%2C%22vars%22%3A%7B%22NewgroundsAPI_PublisherID%22%3A1%2C%22NewgroundsAPI_SandboxID%22%3A%2269d96f699a6dc%22%2C%22NewgroundsAPI_SessionID%22%3A%22%22%2C%22NewgroundsAPI_UserName%22%3A%22%26lt%3Bdeleted%26gt%3B%22%2C%22NewgroundsAPI_UserID%22%3A0%2C%22ng_username%22%3A%22%26lt%3Bdeleted%26gt%3B%22%7D%2C%22width%22%3A800%2C%22height%22%3A600%2C%22icon%22%3A%22https%3A%2F%2Fpicon.ngfiles.com%2F581000%2Fflash_581168_card.webp%3Ff1669677110%22%2C%22warnOnUnsupportedContent%22%3Afalse%2C%22external%22%3A%22%2Fruffle_wrapper%2Fexternal%2Fruffle-external-input.js%3F1775831699%22%2C%22externalSettings%22%3A%7B%22endpoint%22%3A%22https%3A%2F%2Fwww.newgrounds.com%2Fportal%2Fruffle-options%2F197907%22%2C%22types%22%3A%5B1%5D%7D%7D', desc:'The original roguelike crawl through grotesque rooms and loot.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThðŸ†' },
-            { id:'the-binding-of-isaac-rebirth', type:'games', title:'The Binding of Isaac: Rebirth', url:'https://learning.trogiang.vn/games/psp/tboir/index.html', desc:'A faster Isaac run packed with wild item synergies.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThrðŸ†' },
-            { id:'the-binding-of-isaac-wrath-of-the-lamb', type:'games', title:'The Binding of Isaac: Wrath of The Lamb', url:'https://script.google.com/macros/s/AKfycbx1-ahIchbUqDQdqB5GJ2-ZxlbPLz1lz7ohzlqUZ41JUrAnGTIPjgLaASGqqV1ToAuZ/exec', desc:'The classic Isaac expansion with more bosses and items.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThwðŸ†' },
-            { id:'the-binding-of-isaac-wrath-eternal', type:'games', title:'The Binding of Isaac: Wrath of The Lamb Eternal Edition', url:'https://carp.teachmetofish.net/gamefile/boilambeternal.html', desc:'An even harsher Isaac run with nastier chaos.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThweðŸ†' },
-            { id:'tomb-of-the-mask', type:'games', title:'Tomb of the Mask', url:'https://pizzaedition.win/assets/allgames/tomb-of-the-mask/index.html', desc:'Zip through neon mazes while dodging relentless traps.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ToðŸ†' },
-            { id:'townscaper', type:'games', title:'Townscaper', url:'https://oskarstalberg.com/Townscaper/', desc:'Relax and build whimsical island towns block by block.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TowðŸ†' },
-            { id:'tung-tung-sahur-horror', type:'games', title:'Tung Tung Sahur Horror', url:'https://learning.trogiang.vn/gamefile/tung.html', desc:'A meme-horror chase with creepy rooms and brainrot energy.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TuðŸ†' },
+            { id:'scritchy-scratchy', type:'games', title:'Scritchy Scratchy', url:'https://itch.io/embed-upload/16388344?color=333333', desc:'A scratch-card incremental game built around satisfying reveals.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SðŸ …' },
+            { id:'shell-shockers', type:'games', title:'Shell Shockers', url:'https://d.clever.com.drmarcells.com/equations/shellshock/', desc:'An online egg shooter with guns, classes, and arena firefights.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ShðŸ …' },
+            { id:'slime-rancher', type:'games', title:'Slime Rancher', url:'https://cdn.jsdelivr.net/gh/web-ports/slime-ranchers@main/', desc:'Collect bouncing slimes, feed them, and grow a strange ranch.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SlðŸ …' },
+            { id:'slither-io', type:'games', title:'Slither.IO', url:'https://strongdog.com/real-slither.io/index.html', desc:'Grow your snake, trap rivals, and dominate the arena.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SliðŸ …' },
+            { id:'snow-rider-3d', type:'games', title:'Snow-Rider3D', url:'https://itsvijaysingh.github.io/Snow-Rider3D/', desc:'Race downhill on a sled through trees, ramps, and hazards.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SnðŸ …' },
+            { id:'snowball-io', type:'games', title:'Snowball.IO', url:'https://snowball-io.io/', desc:'Roll giant snowballs and knock rivals off the platform.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SnoðŸ …' },
+            { id:'soccer-bros', type:'games', title:'Soccer Bros', url:'https://soccerbros.gg/', desc:'Arcade soccer with volleys, tackles, and over-the-top matches.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SocðŸ …' },
+            { id:'subway-surfers', type:'games', title:'Subway Surfers', url:'https://pizzaedition.win/assets/allgames/subwaysurfers/index.html', desc:'Sprint through train yards, dodge hazards, and chase scores.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SuðŸ …' },
+            { id:'survivor-io', type:'games', title:'Survivor.IO', url:'https://html5.gamedistribution.com/rvvASMiM/f1c451e586c04b4c8cba01b0c50d9090/index.html?gd_sdk_referrer_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_api_as3_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fas3%2Flatest.swf&mp_api_as3_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-as%2F&mp_api_id=5418&mp_api_js_url=https%3A%2F%2Fssl.minijuegosgratis.com%2Flechuck%2Fjs%2Flatest.js&mp_api_js_url_bck=https%3A%2F%2Fapi.minijuegos.com%2Flechuck%2Fclient-js%2F&mp_assets=https%3A%2F%2Fs2.minijuegosgratis.com%2F&mp_embed=0&mp_game_id=243226&mp_game_uid=survivor-io&mp_game_url=https%3A%2F%2Fwww.miniplay.com%2Fgame%2Fsurvivor-io&mp_int=1&mp_locale=en_US&mp_player_type=IFRAME&mp_site_https_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_site_name=miniplay.com&mp_site_url=https%3A%2F%2Fwww.miniplay.com%2F&mp_timezone=America%2FChicago&mp_view_type=&mini_signature=5c1dd14bd056dfdc48b7d97ef3f2d3c2&xdm_e=https%3A%2F%2Fwww.miniplay.com&xdm_c=default1415&xdm_p=1&gd_zone_config=eyJwYXJlbnRVUkwiOiJodHRwczovL3d3dy5taW5pcGxheS5jb20vZ2FtZS9zdXJ2aXZvci1pbyIsInBhcmVudERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsInRvcERvbWFpbiI6Im1pbmlwbGF5LmNvbSIsImhhc0ltcHJlc3Npb24iOmZhbHNlLCJsb2FkZXJFbmFibGVkIjp0cnVlLCJob3N0IjoiaHRtbDUuZ2FtZWRpc3RyaWJ1dGlvbi5jb20iLCJ2ZXJzaW9uIjoiMS41LjE4In0%253D', desc:'Mow down monster hordes with evolving auto-fire weapons.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SurðŸ …' },
+            { id:'swords-and-souls', type:'games', title:'Swords And Souls', url:'https://script.google.com/macros/s/AKfycbwpk3_eQ-NLDyEjcqWn-txMpuRmeF2pgck1awpz9tkMNL79tQ_hYiqC3hKdWhXXXK1f1g/exec', desc:'Train your hero in minigames, then battle fantasy monsters.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'SwðŸ …' },
+            { id:'terraria', type:'games', title:'Terraria', url:'https://terrariamods-scratch.github.io/TerrariaStamped/embed/', desc:'Dig, build, craft, and fight through a massive 2D world.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TðŸ †' },
+            { id:'the-binding-of-isaac-demo', type:'games', title:'The Binding of Isaac: Demo', url:'https://uploads.ungrounded.net/ruffle_wrapper/ruffleembed.html?v=1.2.3&browsermode=default&props=%7B%22ruffle%22%3A%22%2Fruffle_wrapper%2Flib%2Fruffle.js%3F1775708382%22%2C%22public_path%22%3A%22%2Fruffle_wrapper%2Flib%2F%22%2C%22swf%22%3A%22https%3A%2F%2Fuploads.ungrounded.net%2F581000%2F581168_Isaac_demo_Secure.swf%3F1318109425%22%2C%22vars%22%3A%7B%22NewgroundsAPI_PublisherID%22%3A1%2C%22NewgroundsAPI_SandboxID%22%3A%2269d96f699a6dc%22%2C%22NewgroundsAPI_SessionID%22%3A%22%22%2C%22NewgroundsAPI_UserName%22%3A%22%26lt%3Bdeleted%26gt%3B%22%2C%22NewgroundsAPI_UserID%22%3A0%2C%22ng_username%22%3A%22%26lt%3Bdeleted%26gt%3B%22%7D%2C%22width%22%3A800%2C%22height%22%3A600%2C%22icon%22%3A%22https%3A%2F%2Fpicon.ngfiles.com%2F581000%2Fflash_581168_card.webp%3Ff1669677110%22%2C%22warnOnUnsupportedContent%22%3Afalse%2C%22external%22%3A%22%2Fruffle_wrapper%2Fexternal%2Fruffle-external-input.js%3F1775831699%22%2C%22externalSettings%22%3A%7B%22endpoint%22%3A%22https%3A%2F%2Fwww.newgrounds.com%2Fportal%2Fruffle-options%2F197907%22%2C%22types%22%3A%5B1%5D%7D%7D', desc:'The original roguelike crawl through grotesque rooms and loot.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThðŸ †' },
+            { id:'the-binding-of-isaac-rebirth', type:'games', title:'The Binding of Isaac: Rebirth', url:'https://learning.trogiang.vn/games/psp/tboir/index.html', desc:'A faster Isaac run packed with wild item synergies.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ThrðŸ †' },
+            { id:'the-binding-of-isaac-wrath-of-the-lamb', type:'games', title:'The Binding of Isaac: Wrath of The Lamb', url:'https://script.google.com/macros/s/AKfycbx1-ahIchbUqDQdqB5GJ2-ZxlbPLz1lz7ohzlqUZ41JUrAnGTIPjgLaASGqqV1ToAuZ/exec', desc:'The classic Isaac expansion with more bosses and items.', bg:'https://imgcdn.dev/i/YRKZiL', placeholder:'ThwðŸ †' },
+            { id:'the-binding-of-isaac-wrath-eternal', type:'games', title:'The Binding of Isaac: Wrath of The Lamb Eternal Edition', url:'https://carp.teachmetofish.net/gamefile/boilambeternal.html', desc:'An even harsher Isaac run with nastier chaos.', bg:'https://imgcdn.dev/i/YRK9ra', placeholder:'ThweðŸ †' },
+            { id:'tomb-of-the-mask', type:'games', title:'Tomb of the Mask', url:'https://pizzaedition.win/assets/allgames/tomb-of-the-mask/index.html', desc:'Zip through neon mazes while dodging relentless traps.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'ToðŸ †' },
+            { id:'townscaper', type:'games', title:'Townscaper', url:'https://oskarstalberg.com/Townscaper/', desc:'Relax and build whimsical island towns block by block.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TowðŸ †' },
+            { id:'tung-tung-sahur-horror', type:'games', title:'Tung Tung Sahur Horror', url:'https://learning.trogiang.vn/gamefile/tung.html', desc:'A meme-horror chase with creepy rooms and brainrot energy.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'TuðŸ †' },
             { id:'ultrakill', type:'games', title:'Ultrakill', url:'https://cdn.jsdelivr.net/gh/genizy/web-port@master/ultrakill/', desc:'A hyper-fast retro shooter that rewards stylish aggression.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'UðŸŽ¯' },
-            { id:'wrestle-bros', type:'games', title:'Wrestle Bros', url:'https://script.google.com/macros/s/AKfycbzf61_c1OXDbrsZz4pecMt5cUWDGwGJWXUtlOAoNdBE2acBbblA31lQmATDlBRpFVYiWw/exec', desc:'Arcade wrestling with slams, ring chaos, and fast matches.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'WðŸˆ' },
+            { id:'wrestle-bros', type:'games', title:'Wrestle Bros', url:'https://script.google.com/macros/s/AKfycbzf61_c1OXDbrsZz4pecMt5cUWDGwGJWXUtlOAoNdBE2acBbblA31lQmATDlBRpFVYiWw/exec', desc:'Arcade wrestling with slams, ring chaos, and fast matches.', bg:'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=1920', placeholder:'WðŸ ˆ' },
             { id:'psplus', type:'games', title:'PlayStation Plus', icon:'<i class="fas fa-plus"></i>', url:'https://www.playstation.com/en-us/ps-plus/', bg:'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1920', desc:'Access monthly games, cloud saves, and online multiplayer perks.' },
             { id:'dulo-tv', type:'media', title:'Dulo TV', icon:'<i class="fas fa-tv"></i>', url:'https://dulo.tv/', bg:'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1920', desc:'Watch TV shows and movies on Dulo TV.' },
             { id:'moon-tv', type:'media', title:'Moon TV', icon:'<i class="fas fa-moon"></i>', url:'https://moontv.to/home', bg:'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=1920', desc:'Stream content on Moon TV.' },
@@ -1446,7 +1747,10 @@
             'brotato': { img:'https://play-lh.googleusercontent.com/wjYph3dbtJXklfdt2yIQAEnH5ov2ZyuAPr7B0PqNJ29AhcEZX9EhOJT5hsa84tEMYIH3I-3-sSxzo04ULZ-YEg=w240-h480-rw', isLogo:false },
             'burrito-bison': { img:'https://play-lh.googleusercontent.com/vpTgm9u7-GzZP_MceTWpDi0HbinXd_4phCoTwf4ZspFL-115FtNRdo_SU1p-khLDnLA' },
             'cloverpit': { img:'https://play-lh.googleusercontent.com/2CR6ecP2mz281zfOZZoZS4kdZg1WaGfCXdQxdWmt2JkQRDSQG8NhdbgIuH0UepzEyrWTKA7zaqre6xAthebFwyA=w240-h480-rw' },
-            'cod-zombies': { img:'https://i.postimg.cc/G2Wj4SG7/9731611c-ed04-4157-a600-67cc9dedb64e.png' },
+            'cod-zombies': { img:'https://imgcdn.dev/i/YRKfut' },
+            'the-binding-of-isaac-wrath-of-the-lamb': { img:'https://imgcdn.dev/i/YRKZiL' },
+            'the-binding-of-isaac-wrath-eternal': { img:'https://imgcdn.dev/i/YRK9ra' },
+            'nefarius': { img:'https://imgcdn.dev/i/YRKRqw' },
             'cookie-clicker': { img:'https://orteil.dashnet.org/cookieclicker/img/perfectCookie.png' },
             'deadshot': { img:'https://www.google.com/s2/favicons?sz=256&domain_url=https://deadshot.io/' },
             'down-town-james-brown': { img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTi_Lras8_RXWzWjVhAElBevM_jBFYxAmpYOxbqzrFsjg&s&ec=121638480' },
@@ -2009,6 +2313,24 @@
             updateProfileDisplay();
         }
 
+        function updateUserStatus(status) {
+            if(!currentUser || !db) return;
+            db.collection('users').doc(currentUser.uid).update({
+                status: status,
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(() => {});
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                updateUserStatus('online');
+            } else {
+                updateUserStatus('away');
+            }
+        });
+
+        window.addEventListener('beforeunload', () => updateUserStatus('offline'));
+
         function toggleModal(id) {
             document.getElementById(id).classList.toggle('active');
             if (id === 'search-modal') {
@@ -2019,6 +2341,9 @@
             }
             if (id === 'profile-modal') {
                 updateProfileDisplay();
+            }
+            if (id === 'admin-modal' && document.getElementById(id).classList.contains('active')) {
+                switchAdminTab('catalog');
             }
         }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
