@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Classroom</title>
     <link rel="icon" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJw5FU1brRpbmT-hN1G3Jy925NckWBiilIMg&s">
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,7 +18,9 @@
 
         :root {
             --bg-base:        #000000;
-            --bg-glass:       rgba(12, 12, 12, 0.82);
+            --bg-glass:       rgba(18, 18, 18, 0.65);
+            --bg-glass-hi:    rgba(25, 25, 25, 0.75);
+            --blur:           blur(32px) saturate(1.8);
             --bg-glass-hi:    rgba(22, 22, 22, 0.90);
             --bg-tile:        rgba(255, 255, 255, 0.05);
             --bg-tile-hover:  rgba(255, 255, 255, 0.09);
@@ -125,6 +131,8 @@
 
         .game-tile:hover {
             background: var(--bg-tile-hover);
+            filter: brightness(1.15);
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.08);
         }
 
         .game-tile.focused {
@@ -442,15 +450,222 @@
         #search-input {
             padding-left: 44px;
         }
+
+        .placeholder {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: inherit;
+        }
+
+        .modal-content {
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: color 0.2s;
+            font-size: 20px;
+            background: transparent;
+            border: none;
+        }
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .btn-favorite {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 18px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: -4px;
+        }
+        .btn-favorite:hover {
+            background: rgba(255,255,255,0.10);
+            color: var(--text-primary);
+        }
+        .btn-favorite.active {
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+
+
+        @keyframes bootFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes bootSlideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        body { animation: bootFadeIn 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        header { animation: bootSlideDown 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both; }
+        #game-info { animation: bootFadeIn 0.8s ease-out 0.4s both; }
+        /* Premium Glow and Pulse */
+        @keyframes subtleZoom {
+            0% { transform: scale(1.05); }
+            50% { transform: scale(1.07); }
+            100% { transform: scale(1.05); }
+        }
+
+        #bg-overlay:not(.transitioning) {
+            animation: subtleZoom 30s ease-in-out infinite;
+        }
+
+        #active-title {
+            text-shadow: 0 4px 24px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.6);
+        }
+
+        #active-desc {
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+        }
+
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
+            transform: skewX(-20deg);
+            animation: shimmer 4s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            20% { left: 200%; }
+            100% { left: 200%; }
+        }
+
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01));
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-left: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .modal-content {
+            background: var(--bg-glass);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+        }
+
+        /* Modern Spinner */
+        .premium-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 24px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .game-tile {
+            animation: tileEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+        @keyframes tileEnter {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
     </style>
 </head>
 <body>
+
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-content max-w-sm text-center">
+            <h2 class="text-2xl font-bold mb-4">Login / Register</h2>
+            <p class="text-gray-400 text-sm mb-6">Enter a username and password. If it doesn't exist, we'll create an account for you!</p>
+            <div id="auth-error" class="text-red-400 text-sm mb-2 hidden bg-red-900/40 p-2 rounded"></div>
+            <input type="text" id="auth-username" placeholder="Username" class="modal-input w-full mb-3" onkeypress="if(event.key==='Enter') handleAuth()">
+            <input type="password" id="auth-password" placeholder="Password" class="modal-input w-full mb-4" onkeypress="if(event.key==='Enter') handleAuth()">
+            <button class="btn-primary w-full py-3" onclick="handleAuth()">Continue</button>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="admin-modal" class="modal-overlay text-left" onclick="closeModals()">
+        <div class="modal-content max-w-4xl" style="height: 80vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
+            <h2 class="text-2xl font-bold mb-6"><i class="fas fa-shield-alt text-red-500 mr-3"></i>Admin Dashboard</h2>
+            <div class="flex gap-4 border-b border-gray-700 pb-4 mb-4">
+                <button class="text-white font-bold bg-white/10 px-4 py-2 rounded shadow-inner" onclick="switchAdminTab('catalog')">Catalog</button>
+                <button class="text-gray-400 font-bold hover:text-white px-4 py-2 rounded" onclick="switchAdminTab('users')">Users & Mods</button>
+            </div>
+            <div id="admin-content" class="flex-1 overflow-y-auto pr-2">
+                <h3 class="text-xl font-bold mb-4 text-gray-300">Add New Content</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro-bowl')" class="modal-input w-full">
+                    <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
+                    <select id="admin-add-type" class="modal-input w-full">
+                        <option value="games">Games</option>
+                        <option value="media">Media</option>
+                        <option value="browsers">Browsers</option>
+                    </select>
+                    <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
+                    <input type="text" id="admin-add-img" placeholder="Cover Image (optional)" class="modal-input w-full">
+                    <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
+                </div>
+                <button class="btn-primary mt-4" onclick="adminSubmitCatalog()">Add to Catalog</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Notifications Modal -->
+    <div id="notif-modal" class="modal-overlay" onclick="closeModals()">
+        <div class="modal-content max-w-md text-left flex flex-col" style="height: 60vh;" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
+            <h2 class="text-2xl font-bold mb-4 flex items-center"><i class="fas fa-bell text-gray-400 mr-3"></i>Notifications</h2>
+            <div id="notif-content" class="flex-1 overflow-y-auto space-y-3 pr-2">
+                <div class="text-gray-400 text-sm text-center mt-10">No new notifications.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Friends & Chat Container (Persistent) -->
+    <div id="social-overlay" class="fixed right-0 top-0 bottom-0 w-80 bg-black/95 backdrop-blur-3xl border-l border-white/10 transform translate-x-full transition-transform duration-300 z-[9000] flex flex-col">
+        <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+            <h3 class="font-bold text-lg"><i class="fas fa-user-friends mr-2 text-gray-400"></i>Social</h3>
+            <button onclick="toggleSocial()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="social-content">
+            <div class="text-gray-500 text-sm text-center mt-10">Select a chat or add friends</div>
+        </div>
+    </div>
+    
+    
+    <!-- Toasts Container -->
+    <div id="toast-container" class="fixed bottom-6 left-6 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
 
     <div id="bg-overlay"></div>
 
     <div id="search-modal" class="modal-overlay" onclick="closeModals()">
         <div class="modal-content max-w-2xl" onclick="event.stopPropagation()">
-            <h2 class="text-2xl font-bold mb-4">Search Games</h2>
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
+            <h2 class="text-2xl font-bold mb-4">Search</h2>
             <div class="relative mb-4">
                 <i class="fas fa-search absolute left-4 top-4"></i>
                 <input type="text" id="search-input" placeholder="Search games by name, type, or category..." class="modal-input w-full" oninput="filterGames()">
@@ -463,6 +678,7 @@
 
     <div id="settings-modal" class="modal-overlay" onclick="closeModals()">
         <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
             <h2 class="text-2xl font-bold mb-6">Settings</h2>
             <div class="space-y-6">
                 <div>
@@ -495,6 +711,7 @@
 
     <div id="profile-modal" class="modal-overlay" onclick="closeModals()">
         <div class="modal-content max-w-2xl" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeModals()"><i class="fas fa-times"></i></button>
             <h2 class="text-2xl font-bold mb-6">Edit Profile</h2>
             <div class="space-y-6">
                 <div class="flex items-center gap-6">
@@ -538,6 +755,14 @@
                         Cancel
                     </button>
                 </div>
+                <div class="mt-6 pt-4 border-t border-white/10 flex gap-4">
+                    <button id="profile-login-btn" class="flex-1 bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded transition" onclick="closeModals(); toggleModal('auth-modal'); event.stopPropagation();">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login / Switch
+                    </button>
+                    <button id="profile-logout-btn" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded transition" onclick="handleLogout(); event.stopPropagation();" style="display:none;">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Sign Out
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -555,12 +780,7 @@
     </div>
 
     <div id="launch-screen" class="launch-screen">
-        <div style="width:40px; height:40px; margin-bottom:24px; opacity:0.3;">
-            <svg viewBox="0 0 40 40" fill="none">
-                <circle cx="20" cy="20" r="18" stroke="white" stroke-width="1"/>
-                <circle cx="20" cy="20" r="3" fill="white" opacity="0.6"/>
-            </svg>
-        </div>
+        <div class="premium-spinner"></div>
         <h2 id="launch-title">Loading</h2>
         </div>
 
@@ -569,17 +789,24 @@
             <div id="btn-games" class="media-btn active" onclick="switchCategory('games')">Games</div>
             <div id="btn-media" class="media-btn" onclick="switchCategory('media')">Media</div>
             <div id="btn-browsers" class="media-btn" onclick="switchCategory('browsers')">Browsers</div>
+            <div id="btn-favorites" class="media-btn" style="display: none;" onclick="switchCategory('favorites')">Favorites</div>
         </nav>
         <div class="flex items-center space-x-8 text-xl">
             <i class="fas fa-search" onclick="toggleModal('search-modal')"></i>
+            <i class="fas fa-comment-dots" onclick="toggleSocial()"></i>
+            
+            <i class="fas fa-bell relative" onclick="toggleModal('notif-modal')">
+                <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center opacity-0 scale-0 transition-transform duration-300">0</span>
+            </i>
             <i class="fas fa-cog" onclick="toggleModal('settings-modal')"></i>
+            <button id="btn-admin" class="mr-4 text-sm" onclick="toggleModal('admin-modal')" style="display:none; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); padding: 6px 12px; border-radius: 999px; color: #fca5a5; font-weight: 600;"><i class="fas fa-shield-alt mr-1"></i>Admin</button>
             <div class="flex items-center space-x-2 cursor-pointer" onclick="toggleModal('profile-modal')">
                 <div class="profile-avatar">
-                    <img id="header-profile-pic" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User">
+                    <img id="header-profile-pic" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Guest" alt="User">
                 </div>
                 <div class="online-dot"></div>
             </div>
-            <div id="username-display" class="font-medium text-sm ml-2">Felix</div>
+            <div id="username-display" class="font-medium text-sm ml-2">Guest</div>
             <div id="clock" class="font-medium text-lg ml-4">4:42 PM</div>
         </div>
     </header>
@@ -596,6 +823,9 @@
                     <i class="fas fa-play" style="font-size:11px;"></i>
                     <span id="btn-action-text">Open</span>
                 </button>
+                <button onclick="toggleFavorite()" class="btn-favorite" id="btn-favorite" title="Toggle Favorite">
+                    <i class="fas fa-heart"></i>
+                </button>
                 <button onclick="toggleModal('settings-modal')" class="btn-secondary" style="padding:11px 18px;">
                     <i class="fas fa-ellipsis-h"></i>
                 </button>
@@ -604,6 +834,531 @@
     </main>
 
     <script>
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjhsXh2BKiULb_lf1XLXsQy6IRJP3paa4",
+            authDomain: "gameui1z.firebaseapp.com",
+            projectId: "gameui1z",
+            storageBucket: "gameui1z.firebasestorage.app",
+            messagingSenderId: "488163230363",
+            appId: "1:488163230363:web:97b72324e07f428447fc3e",
+            measurementId: "G-Z917M9T98P"
+        };
+        
+        let auth = null, db = null;
+        let currentUser = null;
+        let userRole = 'user'; // user, mod, owner
+
+        try {
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+            }
+        } catch(e) { console.error('Firebase Blocked', e); }
+
+        let userSub = null;
+        let roleSub = null;
+
+        try {
+            if(auth) auth.onAuthStateChanged(async (user) => {
+                currentUser = user;
+                if (userSub) { userSub(); userSub = null; }
+                if (roleSub) { roleSub(); roleSub = null; }
+
+                if (user) {
+                    document.getElementById('auth-modal')?.classList.remove('active');
+                    if(document.getElementById('profile-login-btn')) document.getElementById('profile-login-btn').style.display = 'none';
+                    if(document.getElementById('profile-logout-btn')) document.getElementById('profile-logout-btn').style.display = 'block';
+                    
+                    // Initial fallback UI from Auth Profile
+                    const fallbackName = user.displayName || user.email.split('@')[0];
+                    document.getElementById('username-display').innerHTML = `${fallbackName} <span id="role-badge" class="text-[9px] bg-gray-700 px-1.5 py-0.5 rounded tracking-widest hidden ml-2"></span>`;
+                    const profilePic = document.getElementById('header-profile-pic');
+                    if(profilePic) profilePic.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${fallbackName}`;
+
+                    userSub = db.collection('users').doc(user.uid).onSnapshot(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            if(!data.usernameLower && data.username) {
+                                db.collection('users').doc(user.uid).update({ usernameLower: data.username.toLowerCase() });
+                            }
+                            const currentBadge = document.getElementById('role-badge');
+                            const badgeHTML = currentBadge ? currentBadge.outerHTML : '<span id="role-badge" class="text-[9px] bg-gray-700 px-1.5 py-0.5 rounded tracking-widest hidden ml-2"></span>';
+                            document.getElementById('username-display').innerHTML = `${data.username} ${badgeHTML}`;
+                            if (profilePic && data.avatarUrl) profilePic.src = data.avatarUrl;
+                        }
+                    });
+
+                    roleSub = db.collection('roles').doc(user.uid).onSnapshot(doc => {
+                        if (doc.exists) {
+                            userRole = doc.data().role;
+                            const badge = document.getElementById('role-badge');
+                            if (badge) {
+                                badge.textContent = userRole.toUpperCase();
+                                badge.classList.remove('hidden');
+                                badge.style.display = 'inline-block';
+                                if(userRole === 'owner') badge.className = 'text-[9px] bg-red-600 text-white font-black px-1.5 py-0.5 rounded tracking-widest ml-2';
+                                if(userRole === 'mod') badge.className = 'text-[9px] bg-blue-600 text-white font-black px-1.5 py-0.5 rounded tracking-widest ml-2';
+                            }
+                            if (userRole === 'owner' || userRole === 'mod') {
+                                document.getElementById('btn-admin').style.display = 'inline-block';
+                            }
+                        }
+                    });
+                    if(db) setupListeners();
+                } else {
+                    document.getElementById('username-display').textContent = 'Guest';
+                    const profilePic = document.getElementById('header-profile-pic');
+                    if(profilePic) profilePic.src = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest';
+                    
+                    if(document.getElementById('profile-login-btn')) document.getElementById('profile-login-btn').style.display = 'block';
+                    if(document.getElementById('profile-logout-btn')) document.getElementById('profile-logout-btn').style.display = 'none';
+                    if(document.getElementById('btn-admin')) document.getElementById('btn-admin').style.display = 'none';
+                    if(document.getElementById('role-badge')) document.getElementById('role-badge').style.display = 'none';
+                    setTimeout(() => toggleModal('auth-modal'), 1000);
+                }
+            });
+        } catch(e) { console.error(e); }
+
+        async function handleAuth() {
+            const uInput = document.getElementById('auth-username').value.trim();
+            const pInput = document.getElementById('auth-password').value;
+            const errDiv = document.getElementById('auth-error');
+            if(!auth) { errDiv.textContent = "Offline/Servers Blocked"; errDiv.style.display = 'block'; return; }
+            if(!uInput || !pInput) { errDiv.textContent = "Fill all fields."; errDiv.style.display = 'block'; return; }
+            const email = uInput.toLowerCase() + '@gameui1z.local';
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, pInput);
+            } catch(e) {
+                if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+                    try {
+                        const cred = await auth.createUserWithEmailAndPassword(email, pInput);
+                        await cred.user.updateProfile({ displayName: uInput });
+                        if(db) await db.collection('users').doc(cred.user.uid).set({
+                            username: uInput,
+                            usernameLower: uInput.toLowerCase(),
+                            displayName: uInput,
+                            bio: '',
+                            avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uInput}`,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        if (uInput === 'James' && pInput === 'BrownTown45!') {
+                            try {
+                                if(db) await db.collection('roles').doc(cred.user.uid).set({ role: 'owner', updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: 'system' });
+                            } catch(roleE) {}
+                        }
+                    } catch(regE) {
+                        errDiv.textContent = regE.message;
+                        errDiv.style.display = 'block';
+                    }
+                } else {
+                    errDiv.textContent = e.message;
+                    errDiv.style.display = 'block';
+                }
+            }
+        }
+
+        function handleLogout() { if(auth) auth.signOut(); closeModals(); }
+
+        let dynamicGamesLoaded = false;
+        async function fetchDynamicCatalog() {
+            if(!currentUser || !db || dynamicGamesLoaded) return;
+            const loadColl = async (collection) => {
+                const snap = await db.collection(collection).get();
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const existingIdx = gameData.findIndex(g => g.id === data.id);
+                    if(existingIdx >= 0) {
+                        gameData[existingIdx] = {...gameData[existingIdx], ...data, type: collection};
+                    } else {
+                        gameData.push({...data, type: collection, isCustom: true});
+                    }
+                });
+            };
+            await Promise.all([loadColl('games'), loadColl('media'), loadColl('browsers')]);
+            dynamicGamesLoaded = true;
+            if(currentCategory !== 'favorites') renderTiles();
+        }
+
+        function setupListeners() {
+            fetchDynamicCatalog();
+            db.collection('friendRequests')
+                .where('recipientId', '==', currentUser.uid)
+                .where('status', '==', 'pending')
+                .onSnapshot(snap => {
+                    snap.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            pendingRequests.push({id: change.doc.id, ...data});
+                            showToast(`New Friend Request from ${data.senderName}`);
+                        }
+                        if (change.type === 'removed') {
+                            pendingRequests = pendingRequests.filter(r => r.id !== change.doc.id);
+                        }
+                    });
+                    renderNotifs();
+                });
+
+            db.collection('conversations').where('memberIds', 'array-contains', currentUser.uid)
+                .onSnapshot(snap => {
+                    snap.docChanges().forEach(change => {
+                        if (change.type === 'modified') {
+                            const data = change.doc.data();
+                            if (data.lastMessageSenderId && data.lastMessageSenderId !== currentUser.uid) {
+                                showToast(`New message in ${data.name || 'Chat'}: ${data.lastMessagePreview}`);
+                            }
+                        }
+                    });
+                });
+        }
+
+        function toggleSocial() { 
+            const overlay = document.getElementById('social-overlay');
+            overlay.classList.toggle('translate-x-full');
+            if(!overlay.classList.contains('translate-x-full') && currentUser && db) {
+                loadFriendsList();
+            }
+        }
+
+        async function loadFriendsList() {
+            if (!currentUser || !db) return;
+            const content = document.getElementById('social-content');
+            content.innerHTML = `
+                <div class="mb-4">
+                    <div class="text-sm font-bold mb-2 text-gray-300">Find User</div>
+                    <div class="flex gap-2">
+                        <input type="text" id="social-search" placeholder="Username..." autocomplete="off" class="modal-input flex-1 py-1 px-3 text-sm" onkeypress="if(event.key==='Enter') executeUserSearch()">
+                        <button class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded text-sm text-white font-bold transition" onclick="executeUserSearch()"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                <div id="social-search-results" class="space-y-2 mb-4"></div>
+                
+                <div class="text-gray-300 mb-2 font-bold flex justify-between mt-4">Direct Messages <button class="text-xs bg-white/10 hover:bg-white/20 transition px-2 rounded" onclick="promptCreateGroup()">New Group</button></div>
+                <div id="chats-list" class="space-y-2"></div>
+            `;
+            
+            db.collection('conversations').where('memberIds', 'array-contains', currentUser.uid)
+                .onSnapshot(snap => {
+                    const chatsList = document.getElementById('chats-list');
+                    if(!chatsList) return;
+                    chatsList.innerHTML = '';
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        let displayAvatar = data.avatarUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=Chat';
+                        let displayName = data.name || 'Group Chat';
+                        
+                        // Dynamically determine the other person's name/avatar for DMs
+                        if(data.isDirectMessage && data.names) {
+                            const otherUserId = data.memberIds.find(id => id !== currentUser.uid);
+                            if(otherUserId && data.names[otherUserId]) {
+                                displayName = data.names[otherUserId];
+                                displayAvatar = data.avatars[otherUserId] || `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`;
+                            }
+                        }
+
+                        const div = document.createElement('div');
+                        div.className = 'bg-white/5 p-3 rounded cursor-pointer hover:bg-white/10 transition flex items-center gap-3 border border-white/5';
+                        div.onclick = () => openChat(doc.id, displayName);
+                        div.innerHTML = `<div class="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0 bg-cover" style="background-image:url(${displayAvatar})"></div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="font-bold text-sm truncate text-white">${displayName}</div>
+                                <div class="text-xs text-gray-400 text-ellipsis whitespace-nowrap overflow-hidden">${data.lastMessagePreview || 'New chat...'}</div>
+                            </div>`;
+                        chatsList.appendChild(div);
+                    });
+                });
+        }
+
+
+
+        let notifCount = 0;
+        let pendingRequests = [];
+
+        function renderNotifs() {
+            const container = document.getElementById('notif-content');
+            const badge = document.getElementById('notif-badge');
+            if(!container || !badge) return;
+            
+            notifCount = pendingRequests.length;
+            if(notifCount > 0) {
+                badge.textContent = notifCount;
+                badge.classList.remove('opacity-0', 'scale-0');
+            } else {
+                badge.classList.add('opacity-0', 'scale-0');
+            }
+
+            if(pendingRequests.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-sm text-center mt-10">No new notifications.</div>';
+                return;
+            }
+
+            let html = '<div class="text-xs text-gray-500 font-bold uppercase mb-2">Friend Requests</div>';
+            pendingRequests.forEach(req => {
+                html += `
+                <div class="bg-white/5 border border-white/10 p-3 rounded flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-user-plus text-gray-400"></i>
+                        <div>
+                            <div class="font-bold text-sm text-white">${req.senderName}</div>
+                            <div class="text-xs text-gray-400">wants to be friends</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="bg-green-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-green-500" onclick="handleFriendRequest('${req.id}', 'accepted', '${req.senderId}', '${req.senderName}', '${req.senderAvatar}')"><i class="fas fa-check"></i></button>
+                        <button class="bg-red-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-red-500" onclick="handleFriendRequest('${req.id}', 'declined')"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        async function executeUserSearch() {
+            const input = document.getElementById('social-search');
+            const query = input.value.trim();
+            const resContainer = document.getElementById('social-search-results');
+            if(!query || !db) return;
+            
+            resContainer.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-400 text-sm"></i>';
+            try {
+                // To keep it simple without full text search, we do exact match or partial start
+                const q = query.toLowerCase();
+                // Try exact match first (no composite index needed)
+                const snap = await db.collection('users').where('usernameLower', '==', q).limit(5).get();
+                if(snap.empty) { resContainer.innerHTML = '<div class="text-xs text-gray-400">No users found.</div>'; return; }
+                
+                let html = '';
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    if(doc.id === currentUser.uid) return;
+                    html += `
+                    <div class="flex items-center justify-between bg-white/5 p-2 rounded border border-white/10">
+                        <div class="flex items-center gap-3 pr-2">
+                            <img src="${u.avatarUrl}" class="w-8 h-8 rounded-full bg-black">
+                            <div class="text-sm font-bold truncate">${u.username}</div>
+                        </div>
+                        <button class="text-xs bg-white/10 hover:bg-white/20 transition px-3 py-1 rounded font-bold text-white" onclick="sendFriendRequest('${doc.id}', '${u.username}')">Add</button>
+                    </div>`;
+                });
+                resContainer.innerHTML = html || '<div class="text-xs text-gray-400 mt-2">No other users found.</div>';
+            } catch(e) { resContainer.innerHTML = '<div class="text-xs text-red-400">Error searching.</div>'; }
+        }
+
+        async function sendFriendRequest(targetId, targetName) {
+            if(!db || !currentUser) return;
+            try {
+                const existing = await db.collection('friendRequests')
+                    .where('senderId', '==', currentUser.uid).where('recipientId', '==', targetId)
+                    .where('status', '==', 'pending').get();
+                if(!existing.empty) { showToast('Request already sent!'); return; }
+
+                const myProfile = loadProfile();
+                await db.collection('friendRequests').add({
+                    senderId: currentUser.uid,
+                    senderName: myProfile.username,
+                    senderAvatar: myProfile.profilePic,
+                    recipientId: targetId,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`Sent request to ${targetName}`);
+                document.getElementById('social-search-results').innerHTML = '';
+                document.getElementById('social-search').value = '';
+            } catch(e) { showToast('Error sending request.'); }
+        }
+
+        async function handleFriendRequest(requestId, status, senderId, senderName, senderAvatar) {
+            if(!db) return;
+            try {
+                await db.collection('friendRequests').doc(requestId).update({ status });
+                if(status === 'accepted') {
+                    const myProfile = loadProfile();
+                    
+                    const convo = {
+                        memberIds: [currentUser.uid, senderId],
+                        names: { [currentUser.uid]: myProfile.username, [senderId]: senderName },
+                        avatars: { [currentUser.uid]: myProfile.profilePic, [senderId]: senderAvatar },
+                        isDirectMessage: true,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    await db.collection('conversations').add(convo);
+                    showToast(`You are now friends with ${senderName}!`);
+                }
+                pendingRequests = pendingRequests.filter(r => r.id !== requestId);
+                renderNotifs();
+                closeModals();
+                toggleSocial();
+            } catch(e) { showToast('Error handling request.'); }
+        }
+
+        function promptAddFriend() {
+            // Deprecated by inline search
+        }
+
+
+        function promptCreateGroup() { showToast('Groups comming soon!'); }
+
+        function openChat(conversationId, name) {
+            const content = document.getElementById('social-content');
+            content.innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <button onclick="loadFriendsList()" class="text-gray-400 hover:text-white px-2"><i class="fas fa-chevron-left"></i></button>
+                    <div class="font-bold truncate">${name}</div>
+                </div>
+                <div id="chat-messages" class="flex-1 overflow-y-auto mb-4 space-y-3 pr-2" style="max-height: 60vh;"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" class="modal-input flex-1 py-2 px-3 text-sm" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChatMessage('${conversationId}')">
+                    <button class="bg-white/10 hover:bg-white/20 transition px-4 rounded text-gray-300 font-bold" onclick="sendChatMessage('${conversationId}')"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            `;
+            db.collection(`conversations/${conversationId}/messages`).orderBy('createdAt', 'asc').limit(50)
+                .onSnapshot(snap => {
+                    const msgs = document.getElementById('chat-messages');
+                    if(!msgs) return;
+                    let html = '';
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        const isMine = data.senderId === currentUser.uid;
+                        html += `
+                            <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                                <div class="px-3 py-2 rounded-2xl max-w-[80%] text-sm ${isMine ? 'bg-gray-600 text-white rounded-br-none' : 'bg-white/10 text-gray-200 rounded-bl-none'}">
+                                    ${data.text}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    msgs.innerHTML = html;
+                    msgs.scrollTo(0, msgs.scrollHeight);
+                });
+        }
+
+        function sendChatMessage(conversationId) {
+            const inp = document.getElementById('chat-input');
+            const txt = inp.value.trim();
+            if(!txt || !currentUser || !db) return;
+            inp.value = '';
+            
+            db.collection(`conversations/${conversationId}/messages`).add({
+                senderId: currentUser.uid,
+                text: txt, type: 'text', imageUrl: '', replyToMessageId: '',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(), deleted: false
+            });
+            db.collection('conversations').doc(conversationId).update({
+                lastMessagePreview: txt,
+                lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastMessageSenderId: currentUser.uid,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        async function loadAdminUsers() {
+            if(userRole !== 'owner' && userRole !== 'mod') return;
+            const content = document.getElementById('admin-content');
+            content.innerHTML = '<h3 class="text-xl font-bold mb-4 text-gray-300"><i class="fas fa-spinner fa-spin mr-2"></i>Loading Users...</h3>';
+            try {
+                const snap = await db.collection('users').limit(100).get();
+                let html = '<div class="grid grid-cols-1 gap-3">';
+                const rolePromises = snap.docs.map(doc => 
+                    db.collection('roles').doc(doc.id).get()
+                    .then(r => ({id: doc.id, user: doc.data(), role: r.exists ? r.data().role : 'user'}))
+                    .catch(() => ({id: doc.id, user: doc.data(), role: 'user'}))
+                );
+                const users = await Promise.all(rolePromises);
+                users.forEach(u => {
+                    const actionBtns = userRole === 'owner' ? `
+                        <button class="bg-blue-600 px-3 py-1 rounded text-xs text-white" onclick="adminSetRole('${u.id}', 'mod')">Mod</button>
+                        <button class="bg-gray-600 px-3 py-1 rounded text-xs text-white" onclick="adminSetRole('${u.id}', 'user')">Demote</button>
+                    ` : ``;
+                    
+                    html += `
+                        <div class="bg-white/5 p-3 rounded flex justify-between items-center border border-white/10 hover:bg-white/10">
+                            <div class="flex items-center gap-3">
+                                <img src="${u.user.avatarUrl}" class="w-8 h-8 rounded-full bg-black">
+                                <div>
+                                    <div class="font-bold flex items-center gap-2">${u.user.username} <span class="bg-gray-700 text-[9px] px-1.5 py-0.5 rounded">${u.role}</span></div>
+                                    <div class="text-xs text-gray-400 max-w-xs truncate">${u.user.bio || 'No bio'}</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">${actionBtns}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            } catch(e) { content.innerHTML = '<div class="text-red-400">Error loading users</div>'; }
+        }
+
+        async function adminSetRole(uid, role) {
+            try {
+                await db.collection('roles').doc(uid).set({
+                    role: role, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: currentUser.uid
+                });
+                showToast(`Role updated to ${role}`);
+                loadAdminUsers();
+            } catch(e) { showToast(e.message); }
+        }
+
+        function switchAdminTab(tab) {
+            const content = document.getElementById('admin-content');
+            const btns = document.querySelectorAll('#admin-modal .flex.gap-4 button');
+            btns.forEach(b => { b.className = 'text-gray-400 font-bold hover:text-white px-4 py-2 rounded'; });
+            if (tab === 'catalog') {
+                btns[0].className = 'text-white font-bold bg-white/10 px-4 py-2 rounded shadow-inner';
+                content.innerHTML = `
+                <h3 class="text-xl font-bold mb-4 text-gray-300">Add New Content</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="admin-add-id" placeholder="ID (no spaces, e.g. 'retro')" class="modal-input w-full">
+                    <input type="text" id="admin-add-title" placeholder="Display Title" class="modal-input w-full">
+                    <select id="admin-add-type" class="modal-input w-full"><option value="games">Games</option><option value="media">Media</option><option value="browsers">Browsers</option></select>
+                    <input type="text" id="admin-add-url" placeholder="Source URL" class="modal-input w-full">
+                    <input type="text" id="admin-add-img" placeholder="Cover Image URL (opt)" class="modal-input w-full">
+                    <input type="text" id="admin-add-desc" placeholder="Description" class="modal-input w-full">
+                </div>
+                <button class="btn-primary mt-4" onclick="adminSubmitCatalog()">Add to Catalog</button>
+                `;
+            } else {
+                btns[1].className = 'text-white font-bold bg-white/10 px-4 py-2 rounded shadow-inner';
+                loadAdminUsers();
+            }
+        }
+
+        async function adminSubmitCatalog() {
+            if(userRole !== 'owner' && userRole !== 'mod') return;
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Saving...';
+            const type = document.getElementById('admin-add-type').value;
+            const docId = document.getElementById('admin-add-id').value.trim();
+            const title = document.getElementById('admin-add-title').value.trim();
+            const url = document.getElementById('admin-add-url').value.trim();
+            const img = document.getElementById('admin-add-img').value.trim();
+            const desc = document.getElementById('admin-add-desc').value.trim();
+            if(!docId || !title || !url) { showToast('ID, Title, and URL are required'); btn.textContent = originalText; return; }
+            try {
+                await db.collection(type).doc(docId).set({
+                    id: docId, title, url, img, desc: desc || '', addedBy: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`${title} added cleanly!`);
+                dynamicGamesLoaded = false;
+                fetchDynamicCatalog();
+            } catch(e) { showToast(`Error: ${e.message}`); }
+            btn.textContent = originalText;
+        }
+
+        function showToast(msg, duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-3 rounded shadow-2xl flex items-center gap-3 transform translate-y-full opacity-0 transition-all duration-300 pointer-events-auto';
+            if (msg.includes('New message')) { toast.classList.add('cursor-pointer'); toast.onclick = () => toggleSocial(); }
+            toast.innerHTML = `<i class="fas fa-bell text-blue-400"></i> <span class="font-medium text-sm flex-1">${msg}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-y-full', 'opacity-0'));
+            setTimeout(() => { toast.classList.add('translate-y-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, duration);
+        }
+
         const rawGameData = [
             { id:'store', type:'games', title:'PlayStation Store', icon:'<i class="fas fa-shopping-bag text-5xl text-blue-400"></i>', url:'https://forms.gle/DxkgjsxPiQ5VHnap9', bg:'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?q=80&w=1920', desc:'Request games through this Google Form.' },
             { id:'explore', type:'games', title:'Explore', icon:'<i class="fas fa-rocket text-5xl text-white"></i>', url:'https://blog.playstation.com/', bg:'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920', desc:'Discover news, trailers, and community highlights across PS5.' },
@@ -737,10 +1492,10 @@
 
         const gameBackgroundOverrides = {
             'store': 'https://image.api.playstation.com/pr/bam-art/222/196/cd4b5ccb-6cd8-4566-a3fb-ca8b65b3a6fa.jpg',
-            'explore': 'https://blog.playstation.com/tachyon/2021/03/Playstation-logo.jpg',
+            'explore': 'https://i.ytimg.com/vi/z7zXBf5mi2E/maxresdefault.jpg',
             'baby-sniper': 'https://img.itch.zone/aW1nLzE1NDE5NTk2LmpwZw==/original/koNhgv.jpg',
             'bacon-may-die': 'https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/10/6c/a1/106ca18d-14fd-dfd8-4111-3ef4acb3da59/AppIcon-0-0-1x_U007emarketing-0-0-0-7-0-0-sRGB-0-0-0-GLES2_U002c0-512MB-85-220-0-0.png/1200x630wa.jpg',
-            'baseball-bros': 'https://bluewizard.com/wp-content/uploads/2025/06/image-8.png',
+            'baseball-bros': 'https://i.ytimg.com/vi/KioOao2uvUI/maxresdefault.jpg',
             'basket-bros': 'https://basketbros.io/bbros_364x180.png',
             'bitlife': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/34/88/de/3488dec3-9975-d715-94b0-c02f7b46bf36/Placeholder.mill/1200x630wa.jpg',
             'bloons-td5': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/306020/header.jpg',
@@ -749,7 +1504,7 @@
             'brotato': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1942280/header.jpg',
             'burrito-bison': 'https://is1-ssl.mzstatic.com/image/thumb/Purple116/v4/17/68/ed/1768edfb-f9b4-f634-a80e-981f969e7366/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/1200x630wa.jpg',
             'cloverpit': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3314790/header.jpg',
-            'cod-zombies': 'https://img.itch.zone/aW1nLzE1MDk0MzkzLnBuZw==/original/9kZxCr.png',
+            'cod-zombies': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/311210/library_hero.jpg',
             'cookie-clicker': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1454400/header.jpg',
             'deadshot': 'https://deadshot.io/promo/thumbnail.png',
             'drive-mad': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/ad/73/1c/ad731cb2-c75d-8367-ed67-fff2b865f38b/Placeholder.mill/1200x630wa.jpg',
@@ -764,15 +1519,15 @@
             'gladihoppers': 'https://www.playgladihoppers.com/wp-content/uploads/2025/09/Play-Gladihoppers-Online-For-Free.webp',
             'granny': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/c8/0a/95/c80a951a-7305-1dda-d6b5-c7fe1b1daf64/Placeholder.mill/1200x630wa.jpg',
             'iron-snout': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/424280/header.jpg',
-            'karate-bros': 'https://basketbros.io/karate/splash2.jpg',
+            'karate-bros': 'https://i.ytimg.com/vi/64MLYSVCcmE/maxresdefault.jpg',
             'kart-bros': 'https://kart-bros.io/data/image/options/kartbros-banner.webp',
             'melon-sandbox': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/6c/47/e9/6c47e990-f37c-afd6-8ccb-f2f8efb043df/Placeholder.mill/1200x630wa.jpg',
             'nefarius': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3229030/header.jpg',
             'retro-bowl': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/2f/bb/7d/2fbb7dab-9c94-3522-803f-b229c5b3415b/Placeholder.mill/1200x630wa.jpg',
             'rocket-league': 'https://rocketgoal.io/og-image.png',
-            'rouge-souls-1': 'https://cdn3.kongcdn.com/game_icons/0041/3526/Icon.png?i10c=img.resize(width:180,height:180)',
-            'rouge-souls-2': 'https://cdn1.kongcdn.com/game_icons/0056/8757/250x200_thin_border.png?i10c=img.resize(width:180,height:180)',
-            'scritchy-scratchy': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3948120/header.jpg',
+            'rouge-souls-1': 'https://i.ytimg.com/vi/NfJL06TVyiw/maxresdefault.jpg',
+            'rouge-souls-2': 'https://i.ytimg.com/vi/NfJL06TVyiw/maxresdefault.jpg',
+            'scritchy-scratchy': 'https://i.ytimg.com/vi/t7UBqgTfB_A/maxresdefault.jpg',
             'shell-shockers': 'https://www.shellshock.io/img/previewImage_shellShockers.webp',
             'slime-rancher': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/433340/header.jpg',
             'slither-io': 'https://slither.io/s/fbthumb5.jpg',
@@ -781,13 +1536,13 @@
             'soccer-bros': 'https://soccerbros.gg/kick/splash.jpg',
             'subway-surfers': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/45/20/18/4520180d-e750-8313-1100-9ce62c2c13d0/Placeholder.mill/1200x630wa.jpg',
             'survivor-io': 'https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/fe/92/36/fe92365e-51c7-afb1-f18f-bc55fb0442e8/Placeholder.mill/1200x630wa.jpg',
-            'swords-and-souls': 'https://cdn1.kongcdn.com/game_icons/0063/9685/250x200_BETTER.png?i10c=img.resize(width:180,height:180)',
+            'swords-and-souls': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/679900/library_hero.jpg',
             'terraria': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/105600/header.jpg',
             'the-binding-of-isaac-demo': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/113200/header.jpg',
             'the-binding-of-isaac-rebirth': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/250900/header.jpg',
             'the-binding-of-isaac-wrath-of-the-lamb': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/113200/header.jpg',
             'the-binding-of-isaac-wrath-eternal': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/113200/header.jpg',
-            'tomb-of-the-mask': 'https://wp.tomb.playgendary.com/~gitbook/ogimage/Ewm3pWkRqF6bAhMyv7Ac',
+            'tomb-of-the-mask': 'https://i.ytimg.com/vi/TRZeWws6JOE/maxresdefault.jpg',
             'townscaper': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1291340/header.jpg',
             'tung-tung-sahur-horror': 'https://2games.io/data/image/game/tung-sahur-horror/tung-sahur-horror_sq.png',
             'ultrakill': 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1229490/header.jpg',
@@ -797,6 +1552,7 @@
 
         const gameData = rawGameData.map(enrichGameData);
 
+        let originalTitle = document.title; let originalFavicon = document.querySelector('link[rel="icon"]').href;
         let currentCategory = 'games', filteredGames = [], currentIndex = 0, hoverFocusTimer = null;
         const gameList = document.getElementById('game-list');
         const bgOverlay = document.getElementById('bg-overlay');
@@ -829,8 +1585,39 @@
             document.getElementById('sensitivity-value').textContent = document.getElementById('scroll-sensitivity').value;
         }
 
-        function closeGameIframe() {
+        function toggleFavorite() {
+            if (!filteredGames[currentIndex]) return;
+            const gameId = filteredGames[currentIndex].id;
+            const profile = loadProfile();
+            profile.favoriteItems = profile.favoriteItems || [];
+            
+            const index = profile.favoriteItems.indexOf(gameId);
+            if (index > -1) {
+                profile.favoriteItems.splice(index, 1);
+            } else {
+                profile.favoriteItems.push(gameId);
+            }
+            profile.favorites = profile.favoriteItems.length;
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+            
+            checkFavoritesTab();
+            if (currentCategory === 'favorites') {
+                if (profile.favoriteItems.length === 0) {
+                    switchCategory('games');
+                } else {
+                    switchCategory('favorites');
+                }
+            } else {
+                updateDisplay();
+            }
+            updateProfileDisplay();
+        }
+
+                function closeGameIframe() {
+            if(typeof originalTitle !== 'undefined') document.title = originalTitle;
+            if(typeof originalFavicon !== 'undefined') document.querySelector('link[rel="icon"]').href = originalFavicon;
             document.getElementById('game-iframe-modal').classList.remove('active');
+            setTimeout(() => { document.getElementById('game-iframe').src = ''; }, 250);
         }
 
         function init() { 
@@ -840,6 +1627,8 @@
             updateClock(); 
             let clockInterval = setInterval(updateClock, 1000);
             gameList.addEventListener('mouseleave', clearScheduledFocus);
+            window.addEventListener('resize', updateDisplay);
+            checkFavoritesTab();
 
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
@@ -851,12 +1640,30 @@
             });
         }
 
+
+        function checkFavoritesTab() {
+            const profile = loadProfile();
+            const favs = profile.favoriteItems || [];
+            const favBtn = document.getElementById('btn-favorites');
+            if (favBtn) {
+                favBtn.style.display = favs.length > 0 ? 'block' : 'none';
+            }
+            return favs.length > 0;
+        }
+
         function switchCategory(cat) {
             currentCategory = cat;
-            document.getElementById('btn-games').classList.toggle('active', cat === 'games');
-            document.getElementById('btn-media').classList.toggle('active', cat === 'media');
-            document.getElementById('btn-browsers').classList.toggle('active', cat === 'browsers');
-            filteredGames = gameData.filter(g => g.type === cat);
+            document.querySelectorAll('.media-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById('btn-' + cat);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            if (cat === 'favorites') {
+                const profile = loadProfile();
+                const favs = profile.favoriteItems || [];
+                filteredGames = gameData.filter(g => favs.includes(g.id));
+            } else {
+                filteredGames = gameData.filter(g => g.type === cat);
+            }
             renderTiles();
         }
 
@@ -981,13 +1788,21 @@
         }
 
         function renderTiles() {
-            filteredGames = gameData.filter(g => g.type === currentCategory);
+            // Check if we are rendering favorites
+            if (currentCategory === 'favorites') {
+                const profile = loadProfile();
+                const favs = profile.favoriteItems || [];
+                filteredGames = gameData.filter(g => favs.includes(g.id));
+            } else {
+                filteredGames = gameData.filter(g => g.type === currentCategory);
+            }
             currentIndex = 0;
             gameList.innerHTML = '';
             filteredGames.forEach((game, index) => {
                 const tile = document.createElement('div');
                 tile.className = `game-tile ${index === 0 ? 'focused' : ''}`;
                 tile.dataset.index = index;
+                tile.style.animationDelay = `${index * 0.04}s`;
                 let innerContent = '';
                 if (game.img) {
                     const imgClass = game.isLogo ? 'game-logo' : '';
@@ -1037,6 +1852,16 @@
                 activeTitle.textContent = game.title;
                 activeDesc.textContent = game.desc;
                 document.getElementById('btn-action-text').textContent = game.url ? 'Open' : 'Start';
+                
+                const profile = loadProfile();
+                const favItems = profile.favoriteItems || [];
+                const isFav = favItems.includes(game.id);
+                const favBtn = document.getElementById('btn-favorite');
+                if (favBtn) {
+                    if (isFav) favBtn.classList.add('active');
+                    else favBtn.classList.remove('active');
+                }
+                
                 gameInfo.style.opacity = '1';
             }, FADE_MS);
 
@@ -1103,9 +1928,9 @@
 
         // Profile System
         const defaultProfile = {
-            username: 'Felix',
-            bio: 'Gaming enthusiast',
-            profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+            username: 'Guest',
+            bio: 'Welcome!',
+            profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guest',
             gamesPlayed: 0,
             favorites: 0,
             totalTime: 0
@@ -1119,19 +1944,24 @@
             }
         }
 
-        function saveProfile() {
+                async function saveProfile() {
             const existing = loadProfile();
             const profile = {
-                username: document.getElementById('profile-name').value || 'Felix',
+                username: document.getElementById('profile-name').value || 'Guest',
                 bio: document.getElementById('profile-bio').value,
                 profilePic: document.getElementById('profile-pic-preview').src,
-                gamesPlayed: existing.gamesPlayed,
-                favorites: existing.favorites,
-                totalTime: existing.totalTime
+                gamesPlayed: existing.gamesPlayed, favorites: existing.favorites, totalTime: existing.totalTime
             };
-            
             localStorage.setItem('userProfile', JSON.stringify(profile));
             updateProfileDisplay();
+            if(currentUser && db) {
+                try {
+                    await db.collection('users').doc(currentUser.uid).update({
+                        displayName: profile.username, bio: profile.bio, avatarUrl: profile.profilePic, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showToast("Profile synced to cloud!");
+                } catch(e) { console.warn("Cloud sync error"); }
+            }
             closeModals();
         }
 
@@ -1193,11 +2023,16 @@
         }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); }
 
-        async function launchCurrentGame() {
+                async function launchCurrentGame() {
             if (!filteredGames.length) return;
             currentIndex = Math.max(0, Math.min(currentIndex, filteredGames.length - 1));
             const game = filteredGames[currentIndex];
             if (!game?.url) return;
+            
+            document.title = `Playing: ${game.title}`;
+            let possibleIcon = game.img || game.fallbackImg;
+            if (possibleIcon) document.querySelector('link[rel="icon"]').href = possibleIcon;
+
             const launchScreen = document.getElementById('launch-screen');
             const launchTitle = document.getElementById('launch-title');
             launchTitle.textContent = game.url ? `Opening ${game.title}...` : `Launching ${game.title}...`;
@@ -1279,15 +2114,52 @@
         }
 
         window.addEventListener('keydown', e => {
-            if (e.key === 'ArrowRight') setFocus(currentIndex + 1);
-            else if (e.key === 'ArrowLeft') setFocus(currentIndex - 1);
+            if (e.key === 'Escape') { closeModals(); closeGameIframe(); return; }
+            
+            // Exit early if user is typing in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Exit early if a modal or the social sidebar is open
+            const social = document.getElementById('social-overlay');
+            const isSocialOpen = social && !social.classList.contains('translate-x-full');
+            if (document.querySelector('.modal-overlay.active') || isSocialOpen) return;
+
+            if (e.key === '/') {
+                e.preventDefault();
+                toggleModal('search-modal');
+                return;
+            }
+
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                setFocus(currentIndex + 1);
+            }
+            else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                setFocus(currentIndex - 1);
+            }
+            else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const visibleTabs = Array.from(document.querySelectorAll('.media-btn')).filter(b => b.style.display !== 'none');
+                const activeIdx = visibleTabs.findIndex(b => b.classList.contains('active'));
+                if (activeIdx < visibleTabs.length - 1) visibleTabs[activeIdx + 1].click();
+            }
+            else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const visibleTabs = Array.from(document.querySelectorAll('.media-btn')).filter(b => b.style.display !== 'none');
+                const activeIdx = visibleTabs.findIndex(b => b.classList.contains('active'));
+                if (activeIdx > 0) visibleTabs[activeIdx - 1].click();
+            }
             else if (e.key === 'Enter') launchCurrentGame();
-            else if (e.key === 'Escape') { closeModals(); closeGameIframe(); }
         });
 
+        let wheelTimeout;
         document.getElementById('game-list').addEventListener('wheel', e => {
             e.preventDefault();
-            const delta = e.deltaY > 0 ? scrollSensitivity : -scrollSensitivity;
+            if (wheelTimeout) return;
+            const delay = Math.max(40, 260 - (scrollSensitivity * 22));
+            wheelTimeout = setTimeout(() => { wheelTimeout = null; }, delay);
+            const delta = Math.sign(e.deltaY);
             setFocus(currentIndex + delta);
         }, { passive: false });
 
